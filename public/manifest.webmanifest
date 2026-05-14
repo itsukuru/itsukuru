@@ -1,0 +1,41 @@
+{
+  "name": "いつクル？ - 株主優待 到着予測共有",
+  "short_name": "いつクル？",
+  "description": "株主優待がいつ届く？いつ使った？をみんなで共有するサイト。",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "lang": "ja",
+  "scope": "/",
+  "categories": ["finance", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "検索",
+      "short_name": "検索",
+      "url": "/search",
+      "description": "銘柄を検索する"
+    },
+    {
+      "name": "マイページ",
+      "short_name": "マイページ",
+      "url": "/mypage",
+      "description": "保有銘柄と通知設定"
+    }
+  ]
+}
