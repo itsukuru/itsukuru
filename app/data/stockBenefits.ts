@@ -7181,7 +7181,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     longTermNote: "保有株数・保有期間によりポイント数が変動",
     confidence: "stable",
     expectedArrival: "7月頃案内",
-    badgeKeys: ["catalog", "digital"],
+    badgeKeys: ["catalog", "points"],
   },
   {
     stockCode: "2493",
@@ -7199,7 +7199,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     minShares: 100,
     confidence: "stable",
     expectedArrival: "8月上旬 / 1月下旬頃",
-    badgeKeys: ["discount", "digital"],
+    badgeKeys: ["discount", "points"],
   },
   {
     stockCode: "2722",
@@ -7266,7 +7266,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     minShares: 100,
     confidence: "stable",
     expectedArrival: "8月案内 / 9〜12月頃配送",
-    badgeKeys: ["discount", "gift", "product"],
+    badgeKeys: ["discount", "catalog", "product"],
   },
   {
     stockCode: "3645",
@@ -7276,7 +7276,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     longTermNote: "1年以上の継続保有が条件",
     confidence: "stable",
     expectedArrival: "権利確定後3ヶ月以内案内",
-    badgeKeys: ["digital", "gift"],
+    badgeKeys: ["points", "catalog"],
   },
   {
     stockCode: "3892",
@@ -7295,7 +7295,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     confidence: "stable",
     notes: "5月権利はジェフグルメカード等、11月権利は別内容。",
     expectedArrival: "8月中旬頃 / 2月頃",
-    badgeKeys: ["food", "voucher", "gift"],
+    badgeKeys: ["food", "voucher", "catalog"],
   },
   {
     stockCode: "4825",
@@ -7305,7 +7305,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     confidence: "stable",
     notes: "株式分割後は200株以上が対象。",
     expectedArrival: "8月下旬頃 / 2月頃案内",
-    badgeKeys: ["digital", "service"],
+    badgeKeys: ["points", "other"],
   },
   {
     stockCode: "6044",
@@ -7343,7 +7343,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     minShares: 100,
     confidence: "stable",
     expectedArrival: "7月下旬頃",
-    badgeKeys: ["service", "discount"],
+    badgeKeys: ["other", "discount"],
   },
   {
     stockCode: "9765",
