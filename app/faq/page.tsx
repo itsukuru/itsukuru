@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { SITE_URL, SITE_NAME } from "@/app/lib/siteConfig";
 
-const FAQ: { q: string; a: string }[] = [
+type FaqItem = { q: string; a: string; id?: string };
+
+const FAQ: FaqItem[] = [
   {
     q: "株主優待はいつ届きますか？届く時期の目安は？",
     a: "株主優待の発送時期は銘柄ごとに異なりますが、多くの企業では【権利確定月の約2〜3ヶ月後】に発送されます。たとえば3月権利の銘柄なら6月下旬〜7月、9月権利なら12月下旬〜翌1月が一般的です。各銘柄ページで「みんなの届いた！」投稿を集めて、より具体的な到着日を予測しています。",
@@ -33,7 +35,12 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "「届いた！」投稿はどのように予測に使われますか？",
-    a: "複数のユーザーから「◯月◯日に届いた」という投稿が集まると、本サイトはそれらを統計処理して【次回の到着予測日】を計算します。年に複数回ある優待（半期ごとなど）はサイクルを自動検出し、それぞれの予測を行います。投稿が増えるほど精度が向上します。",
+    a: "投稿された到着日を、銘柄ごとに統計処理して【次回の到着予測日】を計算します。年に複数回ある優待（半期ごとなど）はサイクルを自動検出し、それぞれの予測を行います。なお、いたずらや明らかに外れた日付は、IR・権利月ベースの目安や投稿同士のばらつき（IQR）から**統計から除外する場合**があり、除外件数は予測の説明文に表示します。投稿が増えるほど精度が向上します。",
+  },
+  {
+    id: "data-transparency",
+    q: "投稿データはどこに保存され、誰が見られますか？（透明性）",
+    a: "現状の実装では、「届いた！」「使った！」の内容は主に**お使いのブラウザの localStorage（端末内）**に保存されます。同じブラウザで銘柄ページを開いたときに一覧表示され、到着予測の集計にもそのデータが使われます。学習用のサンプル投稿が混ざる場合があります。**他の利用者の端末と投稿が自動で共有される仕組みではありません**（別端末では別のデータになります）。バックアップ JSON で自分のデータを退避・移行できます。メール認証（Supabase）は主にキニナル銘柄・表示名などの同期に用いており、投稿本文が運営サーバーに常時アップロードされることはありません。詳しくはプライバシーポリシーと、銘柄ページ投稿フォーム上の「データの取り扱い」をご確認ください。",
   },
   {
     q: "優待が廃止されたかどうかはどうやって判断する？",
@@ -41,7 +48,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "優待利回りはどうやって計算する？",
-    a: "優待利回り（％）=（優待品の金額換算 ÷ 株価 ÷ 必要株数）× 100 です。たとえば株価1,000円・100株必要・3,000円相当のQUOカードなら、利回り3%です。配当と合わせた「総合利回り」で評価することが一般的です。",
+    a: "年間にもらえる優待の換算額と、株式取得にかかった資金との比率を％で表したものだとお考えください。細かな定義や換算単位は銘柄ごと・掲載サイトごとで違うため、小数の桁まで完全にそろえて比べるより「目安」として使うのが無難です。配当金をあわせた総合利回りで評価するのもよく見られます。",
   },
   {
     q: "クロス取引（つなぎ売り）で優待は取れる？",
@@ -90,10 +97,6 @@ const FAQ: { q: string; a: string }[] = [
   {
     q: "優待は株式分割の影響を受けますか？",
     a: "株式分割が行われると、必要株数（例：100株→200株）も基本的に同じ比率で変更されるため、優待を受ける条件は実質変わりません。ただし、企業によっては分割を機に優待制度を見直すケースもあります。最近では1株から取引できる「単元未満化」も増えており、優待制度との関係は要注目です。",
-  },
-  {
-    q: "クオカードの優待がもらえる人気銘柄を教えてください",
-    a: "QUOカード優待で代表的な銘柄には、すかいらーくHD（3197）以外にも、丸八ホールディングス（3504）、明光ネットワークジャパン（4668）、リソー教育（4714）など多数あります。本サイトの「優待カテゴリ」検索で「クオカード」を選ぶと一覧で確認できます。最低株数や金額のバランスを比較してご選択ください。",
   },
   {
     q: "株主総会の招集通知と優待品は別便で届きますか？",
@@ -154,7 +157,7 @@ export default function FaqPage() {
       {
         "@type": "ListItem",
         position: 2,
-        name: "FAQ",
+        name: "よくある質問・FAQ",
         item: `${SITE_URL}/faq`,
       },
     ],
@@ -173,57 +176,66 @@ export default function FaqPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
       <main className="min-h-screen bg-slate-50 pb-20">
-        <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
           <nav aria-label="パンくず" className="text-xs text-slate-500">
             <Link href="/" className="hover:underline">
               ホーム
             </Link>
             <span className="mx-1">›</span>
-            <span className="text-slate-700">FAQ・よくある質問</span>
+            <span className="text-slate-700">よくある質問・FAQ</span>
           </nav>
 
           <h1 className="mt-4 text-2xl font-bold text-slate-900 sm:text-3xl">
-            株主優待がいつ届く？よくある質問
+            株主優待がいつ届く？よくある質問・FAQ
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-700">
             「株主優待がいつ届くのか分からない」「優待がまだ届かないけど大丈夫？」「権利確定月と発送時期の関係は？」など、株主優待に関するよくある疑問にQ&A形式でお答えします。
             <strong>{SITE_NAME}</strong>
             では、各銘柄ページで「届いた！」投稿を集めて、より正確な到着予測も提供しています。
           </p>
+          <p className="mt-2 text-xs text-slate-500">
+            各質問はタップ（クリック）で開閉できます。
+          </p>
 
-          <section className="mt-6 space-y-3">
+          <section className="mt-6 space-y-2" aria-label="質問一覧">
             {FAQ.map((item, idx) => (
-              <article
-                key={idx}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+              <details
+                key={item.id ?? `faq-${idx}`}
+                id={item.id ?? `faq-${idx}`}
+                className="group/details rounded-2xl border border-slate-200 bg-white shadow-sm [&[open]>summary]:border-b [&[open]>summary]:border-slate-100"
                 itemScope
                 itemType="https://schema.org/Question"
               >
-                <h2
-                  className="flex items-start gap-2 text-base font-bold text-slate-900"
-                  itemProp="name"
-                >
+                <summary className="flex cursor-pointer list-none items-start gap-3 px-5 py-4 marker:content-none [&::-webkit-details-marker]:hidden">
                   <span
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-100 text-xs font-bold text-blue-700"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue-100 text-xs font-bold text-blue-700"
                     aria-hidden
                   >
                     Q
                   </span>
-                  <span>{item.q}</span>
-                </h2>
+                  <h2 itemProp="name" className="min-w-0 flex-1 text-base font-bold leading-snug text-slate-900">
+                    {item.q}
+                  </h2>
+                  <span
+                    className="mt-1 shrink-0 text-slate-400 transition-transform duration-200 group-open/details:rotate-180"
+                    aria-hidden
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </summary>
                 <div
+                  className="px-5 pb-5 pt-3"
                   itemProp="acceptedAnswer"
                   itemScope
                   itemType="https://schema.org/Answer"
                 >
-                  <p
-                    className="mt-2 pl-8 text-sm leading-relaxed text-slate-700"
-                    itemProp="text"
-                  >
+                  <p itemProp="text" className="break-keep pl-0 text-sm leading-relaxed text-slate-700 sm:pl-10">
                     {item.a}
                   </p>
                 </div>
-              </article>
+              </details>
             ))}
           </section>
 

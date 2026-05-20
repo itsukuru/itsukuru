@@ -9,19 +9,15 @@ type Props = {
 
 /**
  * 銘柄詳細ページ専用のシェア UI。
- * - Web Share API（iOS Safari / Android Chrome）で OS ネイティブ共有
- * - LINE / X / Facebook / Threads の個別シェア
- * - URL コピー（フォールバック付き）
+ * - X → LINE → リンク（URL コピー）の順
  */
 export default function ShareButtons({ stockCode, stockName }: Props) {
   const [pageUrl, setPageUrl] = useState("");
   const [copied, setCopied] = useState(false);
-  const [canNativeShare, setCanNativeShare] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setPageUrl(window.location.href);
-    setCanNativeShare(typeof navigator.share === "function");
   }, []);
 
   const shareText = `${stockName}（${stockCode}）の株主優待、いつ届く？いつ使った？を共有 - いつクル？`;
@@ -30,17 +26,6 @@ export default function ShareButtons({ stockCode, stockName }: Props) {
 
   const xUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=株主優待,いつクル`;
   const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodedUrl}&text=${encodedText}`;
-  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
-  const threadsUrl = `https://www.threads.net/intent/post?text=${encodedText}%20${encodedUrl}`;
-
-  const handleNativeShare = async () => {
-    if (typeof navigator === "undefined" || !navigator.share) return;
-    try {
-      await navigator.share({ url: pageUrl, text: shareText, title: stockName });
-    } catch {
-      // ユーザーがキャンセル
-    }
-  };
 
   const handleCopy = async () => {
     if (!pageUrl) return;
@@ -76,28 +61,6 @@ export default function ShareButtons({ stockCode, stockName }: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-slate-700">この銘柄をシェア:</span>
 
-        {canNativeShare && (
-          <button
-            type="button"
-            onClick={handleNativeShare}
-            aria-label="共有する"
-            className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition active:scale-95 hover:bg-slate-800"
-          >
-            <span aria-hidden>📤</span>
-            <span>共有</span>
-          </button>
-        )}
-
-        <a
-          href={lineUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="LINE で共有"
-          className="inline-flex items-center gap-1 rounded-lg bg-[#06C755] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-95 hover:bg-[#05b14a]"
-        >
-          <span>LINE</span>
-        </a>
-
         <a
           href={xUrl}
           target="_blank"
@@ -109,23 +72,13 @@ export default function ShareButtons({ stockCode, stockName }: Props) {
         </a>
 
         <a
-          href={fbUrl}
+          href={lineUrl}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="Facebook で共有"
-          className="inline-flex items-center gap-1 rounded-lg bg-[#1877F2] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-95 hover:bg-[#1666d6]"
+          aria-label="LINE で共有"
+          className="inline-flex items-center gap-1 rounded-lg bg-[#06C755] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-95 hover:bg-[#05b14a]"
         >
-          <span>f</span>
-        </a>
-
-        <a
-          href={threadsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Threads で共有"
-          className="hidden sm:inline-flex items-center gap-1 rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition active:scale-95 hover:bg-slate-600"
-        >
-          <span>@</span>
+          <span>LINE</span>
         </a>
 
         <button

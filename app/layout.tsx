@@ -1,15 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import BottomNav from "./components/BottomNav";
 import SiteHeader from "./components/SiteHeader";
 import SiteFooter from "./components/SiteFooter";
 import NotificationWatcher from "./components/NotificationWatcher";
 import ServiceWorkerRegistrar from "./components/ServiceWorkerRegistrar";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "./lib/siteConfig";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+/** 日本語 UI 全体の可読性・統一感のため本文は Noto Sans JP を優先 */
+const notoSansJp = Noto_Sans_JP({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-noto-sans-jp",
+  display: "swap",
+  adjustFontFallback: true,
 });
 
 const geistMono = Geist_Mono({
@@ -17,12 +22,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "./lib/siteConfig";
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: SITE_URL,
+  description: SITE_DESCRIPTION,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  applicationName: SITE_NAME,
+  inLanguage: "ja-JP",
+  publisher: {
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon`,
+  },
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${SITE_URL}/search?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+} as const;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる共有サイト`,
+    default: `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる到着共有コミュニティ`,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
@@ -64,7 +91,7 @@ export const metadata: Metadata = {
     "優待 感想",
   ],
   openGraph: {
-    title: `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる共有サイト`,
+    title: `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる到着共有コミュニティ`,
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     siteName: SITE_NAME,
@@ -73,21 +100,12 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる共有サイト`,
+    title: `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる到着共有コミュニティ`,
     description: SITE_DESCRIPTION,
-  },
-  alternates: {
-    canonical: "/",
   },
   robots: {
     index: true,
     follow: true,
-  },
-  manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    title: SITE_NAME,
-    statusBarStyle: "black-translucent",
   },
   formatDetection: {
     telephone: false,
@@ -95,10 +113,7 @@ export const metadata: Metadata = {
     address: false,
   },
   other: {
-    "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
-    "apple-mobile-web-app-title": SITE_NAME,
+    copyright: `© ${SITE_NAME}. All rights reserved.`,
     "msapplication-TileColor": "#1d4ed8",
     "msapplication-tap-highlight": "no",
     "format-detection": "telephone=no,email=no,address=no",
@@ -127,7 +142,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      className={`${notoSansJp.variable} ${geistMono.variable} antialiased`}
     >
       {/* flex + grow は #main-content がビューポート高に張り付き内側スクロールになることがあるため、通常のブロック積みにする */}
       <body className="min-h-dvh bg-white">
@@ -146,6 +161,11 @@ export default function RootLayout({
         </div>
         <SiteFooter />
         <BottomNav />
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
       </body>
     </html>
   );

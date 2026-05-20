@@ -3,6 +3,7 @@ import {
   loadProfile,
   loadNotificationSettings,
 } from "./profileClient";
+import { loadBenefitForStock } from "./benefitsClient";
 import { computeArrivalForecast } from "./forecastClient";
 import { loadReportsForStock } from "./reportsClient";
 import { loadHoldings, type Holdings } from "./holdingsClient";
@@ -82,7 +83,9 @@ export const collectUpcomingNotifiables = (
   for (const code of codes) {
     const stock = byCode.get(code);
     if (!stock) continue;
-    const forecast = computeArrivalForecast(loadReportsForStock(code));
+    const forecast = computeArrivalForecast(loadReportsForStock(code), {
+      benefit: loadBenefitForStock(code),
+    });
     if (!forecast) continue;
     if (forecast.daysUntil < 0) continue;
     if (forecast.daysUntil > thresholdDays) continue;

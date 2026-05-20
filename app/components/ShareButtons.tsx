@@ -8,8 +8,6 @@ type Props = {
   path?: string;
   /** シェアテキスト（ない場合は SITE_NAME を使う） */
   text?: string;
-  /** シェアタイトル（Web Share API 用、無ければ text を使う） */
-  title?: string;
   /** 配置サイズ。compact は小さいフッター用、large はメインボタン用 */
   size?: "compact" | "default" | "large";
   /** ラベル表示（compact は icon-only） */
@@ -17,15 +15,11 @@ type Props = {
 };
 
 /**
- * シェアボタン集合（X / LINE / コピー / OS ネイティブ共有）
- *
- * Web Share API が使えるモバイルでは「OS 共有」を先に表示。
- * PC では X → LINE の順で並べる。
+ * シェアボタン集合（X → LINE → リンクコピーの順）
  */
 export default function ShareButtons({
   path,
   text,
-  title,
   size = "default",
   showLabel = true,
 }: Props) {
@@ -36,8 +30,7 @@ export default function ShareButtons({
       ? window.location.origin + (path ?? window.location.pathname)
       : `${SITE_URL}${path ?? ""}`;
 
-  const shareText = text ?? `${SITE_NAME} — 株主優待がいつ届く？がわかる共有サイト`;
-  const shareTitle = title ?? shareText;
+  const shareText = text ?? `${SITE_NAME} — 株主優待がいつ届く？がわかる到着共有コミュニティ`;
   const encodedUrl = encodeURIComponent(fullUrl);
   const encodedText = encodeURIComponent(shareText);
 
@@ -47,15 +40,6 @@ export default function ShareButtons({
   const padding =
     size === "large" ? "px-4 py-3 text-sm" : size === "compact" ? "p-2 text-base" : "px-3 py-2 text-sm";
   const gap = size === "compact" ? "gap-1.5" : "gap-2";
-
-  const handleNativeShare = async () => {
-    if (typeof navigator === "undefined" || !navigator.share) return;
-    try {
-      await navigator.share({ url: fullUrl, text: shareText, title: shareTitle });
-    } catch {
-      // ユーザーがキャンセル / 共有不可
-    }
-  };
 
   const handleCopy = async () => {
     try {
@@ -78,23 +62,8 @@ export default function ShareButtons({
     }
   };
 
-  const canNativeShare =
-    typeof navigator !== "undefined" && typeof navigator.share === "function";
-
   return (
     <div className={`flex flex-wrap items-center ${gap}`}>
-      {canNativeShare && (
-        <button
-          type="button"
-          onClick={handleNativeShare}
-          aria-label="共有する"
-          className={`inline-flex items-center gap-1.5 rounded-full bg-slate-900 ${padding} font-medium text-white shadow-sm transition active:scale-95 hover:bg-slate-800`}
-        >
-          <span aria-hidden>📤</span>
-          {showLabel && <span>共有</span>}
-        </button>
-      )}
-
       <a
         href={xUrl}
         target="_blank"

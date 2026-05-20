@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <h1 className="mt-4 text-2xl font-bold text-slate-900 sm:text-3xl">
           プライバシーポリシー
         </h1>
-        <p className="mt-2 text-xs text-slate-500">最終更新日: 2026年5月13日</p>
+        <p className="mt-2 text-xs text-slate-500">最終更新日: 2026年5月16日</p>
 
         <article className="mt-6 space-y-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700 sm:p-6">
           <section>
@@ -50,12 +50,16 @@ export default function PrivacyPage() {
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-6">
               <li>メールアドレス（認証目的、Magic Link 送信用）</li>
-              <li>表示名（任意。「届いた！」「使った！」投稿に表示する名前）</li>
-              <li>地域名（任意。投稿の参考情報として表示）</li>
-              <li>投稿内容（到着日・コメント・添付画像）</li>
-              <li>いいね（投稿への反応）</li>
+              <li>表示名（任意。プロフィール・将来のサーバー同期用）</li>
+              <li>地域名（任意。プロフィール用）</li>
+              <li>キニナル（ウォッチリスト）銘柄コード一覧（同期用）</li>
+              <li>いいね（投稿への反応）※サーバー保存する場合</li>
               <li>サインインの記録（不正アクセス検知用、Supabase 標準）</li>
             </ul>
+            <p className="mt-2">
+              現バージョンでは「届いた！」「使った！」の<strong>投稿本文（到着日・コメント等）</strong>は、原則として
+              <strong>ブラウザの localStorage にのみ</strong>保存され、上記サーバーへは自動送信されません。将来クラウド同期を提供する場合は、利用開始前に本ページとサイト内で告知し、同意の取得方法を明記します。
+            </p>
             <p className="mt-2">
               パスワードは保存しません（Magic Link 方式のため）。
               IP アドレスは Supabase が認証ログに一定期間保存しますが、当サイト運営者は通常これを閲覧しません（脆弱性調査・不正対応時のみ参照）。
@@ -65,14 +69,28 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-base font-bold text-slate-900">3. ブラウザに保存される情報（localStorage）</h2>
             <p className="mt-2">
-              以下の情報はユーザーのブラウザの localStorage にのみ保存され、サーバーには送信されません。
+              以下の情報はユーザーのブラウザの localStorage に保存されます。投稿のうち、ゲスト利用時の「届いた！」「使った！」は
+              <strong>この端末内にのみ</strong>蓄積され、他の利用者の端末と自動では共有されません（バックアップ JSON で自分が移行できます）。
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-6">
+              <li>
+                <strong>「届いた！」「使った！」投稿</strong>（銘柄コード別。到着日・段階・コメント・表示名・地域・画像URL 等。キー例:{" "}
+                <code className="rounded bg-slate-100 px-1 text-xs">benefit-reports:</code>{" "}
+                <code className="rounded bg-slate-100 px-1 text-xs">benefit-usage-reports:</code>
+                ）
+              </li>
               <li>保有銘柄・キニナル銘柄の一覧</li>
               <li>通知設定</li>
               <li>銘柄マスタのローカル編集内容</li>
               <li>投稿の下書き（送信前の一時保存）</li>
             </ul>
+            <p className="mt-2">
+              集計・到着予測は、上記の投稿データを用いて<strong>端末内で計算</strong>します。明らかに外れた日付を統計から外す場合があり、その旨は
+              <Link href="/faq#data-transparency" className="text-blue-600 hover:underline">
+                よくある質問・FAQ
+              </Link>
+              および銘柄ページの説明に記載します。
+            </p>
           </section>
 
           <section>
@@ -113,8 +131,9 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-base font-bold text-slate-900">7. データの保管期間</h2>
             <p className="mt-2">
-              投稿データはアカウント削除依頼があるまで保管します。アカウント削除をご希望の場合は
-              <Link href="/contact" className="ml-1 text-blue-600 hover:underline">
+              投稿データのうち、ブラウザの localStorage にのみ存在するものは、端末のストレージ操作やマイページのエクスポートでユーザーが削除・退避できます。Supabase
+              上に保存されたアカウント情報の削除をご希望の場合は
+              <Link href="/contact" className="text-blue-600 hover:underline">
                 お問い合わせフォーム
               </Link>
               からご連絡ください。お問い合わせメッセージは対応完了後 1 年程度で削除します。

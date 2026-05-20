@@ -5,7 +5,7 @@ import { SITE_URL } from "./lib/siteConfig";
  * robots.txt 生成
  * ─────────────────────────────────────────────
  * 1. 一般検索エンジン (Google / Bing 等) には公開ページのインデックスを許可
- *    マイページ・API・コンタクト送信ページは crawl 禁止
+ *    マイページ・API・運営者専用は crawl 禁止
  *
  * 2. AI 学習用クローラーを明示的にブロック（パクリ・無断学習対策）
  *    対象:
@@ -61,6 +61,14 @@ const AI_CRAWLERS = [
   "YouBot",
   "AI2Bot",
   "TurnitinBot",
+  "AhrefsBot",
+  "BLEXBot",
+  "DotBot",
+  "MJ12bot",
+  "PetalBot",
+  "Scrapy",
+  "SeekportBot",
+  "SemrushBot",
 ];
 
 export default function robots(): MetadataRoute.Robots {
@@ -75,7 +83,6 @@ export default function robots(): MetadataRoute.Robots {
           "/mypage/*",
           "/api/",
           "/api/*",
-          "/contact",
           "/_next/",
           // 運営者専用ページ
           "/admin",

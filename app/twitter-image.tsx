@@ -6,7 +6,7 @@ import { SITE_NAME } from "./lib/siteConfig";
 // Next.js が `runtime` の再エクスポートを認識しない仕様のため
 // 直接ここで定義する。
 export const runtime = "edge";
-export const alt = `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる共有サイト`;
+export const alt = `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる到着共有コミュニティ`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

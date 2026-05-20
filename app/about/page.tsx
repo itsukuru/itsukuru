@@ -121,7 +121,14 @@ export default function AboutPage() {
             <li>銘柄名・証券コードでの検索</li>
             <li>銘柄ごとの「届いた！」投稿と最新到着日</li>
             <li>過去の投稿からの到着予測（「いつ届く目安」）</li>
-            <li>保有銘柄・キニナルの管理と年間優待カレンダー</li>
+            <li>
+              投稿データの取り扱いの透明性（保存場所・集計のしかた・削除・
+              <Link href="/faq#data-transparency" className="text-blue-600 hover:underline">
+                よくある質問・FAQ
+              </Link>
+              ）
+            </li>
+            <li>保有銘柄・キニナルの管理と、保有銘柄の優待カレンダー（権利月・届く目安）</li>
             <li>保有株数の登録による優待対象判定</li>
           </ul>
         </section>
@@ -153,12 +160,7 @@ export default function AboutPage() {
             <dd>個人運営</dd>
 
             <dt className="font-medium text-slate-500">サイトの性質</dt>
-            <dd>
-              株主優待情報のユーザー共有プラットフォーム
-              <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-900">
-                投資助言業 ではありません
-              </span>
-            </dd>
+            <dd>株主優待情報のユーザー共有プラットフォーム</dd>
 
             <dt className="font-medium text-slate-500">連絡先</dt>
             <dd>
@@ -173,11 +175,6 @@ export default function AboutPage() {
 
             <dt className="font-medium text-slate-500">公開開始</dt>
             <dd>2026 年</dd>
-
-            <dt className="font-medium text-slate-500">技術スタック</dt>
-            <dd className="text-slate-600">
-              Next.js / TypeScript / Tailwind CSS / Supabase / Vercel
-            </dd>
           </dl>
           <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
             ※ 当サイトは金融商品取引法に基づく投資助言業の登録は受けておりません。投資判断は必ずご自身の責任でお願いいたします。投資勧誘・特定銘柄の取得推奨は一切行いません。

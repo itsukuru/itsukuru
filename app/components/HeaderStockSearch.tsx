@@ -38,7 +38,7 @@ export default function HeaderStockSearch({
   const trimmed = query.trim();
   const results = useMemo(() => {
     if (!trimmed) return [];
-    return filterStocksBySearchKeyword(stocks, trimmed, 16);
+    return filterStocksBySearchKeyword(stocks, trimmed);
   }, [stocks, trimmed]);
 
   useEffect(() => {

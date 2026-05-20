@@ -21,7 +21,7 @@ export default function DisclaimerPage() {
         </nav>
 
         <h1 className="mt-4 text-2xl font-bold text-slate-900 sm:text-3xl">免責事項</h1>
-        <p className="mt-2 text-xs text-slate-500">最終更新日: 2026年5月11日</p>
+        <p className="mt-2 text-xs text-slate-500">最終更新日: 2026年5月16日</p>
 
         <article className="mt-6 space-y-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700 sm:p-6">
           <section>
@@ -42,6 +42,11 @@ export default function DisclaimerPage() {
             <h2 className="text-base font-bold text-slate-900">到着日予測の精度</h2>
             <p className="mt-2">
               次回到着予測はユーザー投稿の集計から計算した目安です。実際の到着日を保証するものではありません。配送状況、企業側の発送スケジュール、ユーザーの保有株数・住所などにより到着日は変動します。
+              統計処理では、明らかに外れた日付を除外する場合があり、その件数は画面に表示します。収集・保存の透明性については
+              <Link href="/faq#data-transparency" className="text-blue-600 hover:underline">
+                よくある質問・FAQ
+              </Link>
+              をご参照ください。
             </p>
           </section>
 

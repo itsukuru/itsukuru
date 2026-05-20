@@ -52,7 +52,7 @@ export default function NotFound() {
             </li>
             <li>
               <Link href="/faq" className="text-blue-700 hover:underline">
-                ❓ よくある質問
+                ❓ よくある質問・FAQ
               </Link>
             </li>
             <li>

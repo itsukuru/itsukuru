@@ -9,7 +9,7 @@ export default function SiteFooter() {
           <div>
             <Logo size="sm" />
             <p className="mt-2 text-xs text-slate-500">
-              株主優待の「届いた！」と「使った！」を共有するサイト
+              株主優待の「届いた！」と「使った！」を共有するコミュニティ
             </p>
           </div>
           <nav aria-label="フッターリンク" className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
@@ -20,7 +20,7 @@ export default function SiteFooter() {
               銘柄検索
             </Link>
             <Link href="/faq" className="hover:underline">
-              FAQ
+              よくある質問・FAQ
             </Link>
             <Link href="/about" className="hover:underline">
               いつクル？とは
@@ -43,7 +43,10 @@ export default function SiteFooter() {
           ※ 当サイトは投資助言を行うものではありません。投資は自己責任でお願いします。
         </p>
         <p className="mt-1 text-[11px] text-slate-400">
-          © {new Date().getFullYear()} いつクル？
+          © {new Date().getFullYear()} いつクル？ All rights reserved.
+        </p>
+        <p className="mt-1 text-[11px] text-slate-400">
+          掲載情報・投稿・文章・画面構成の無断転載、機械的取得、再配布を禁止します。
         </p>
       </div>
     </footer>

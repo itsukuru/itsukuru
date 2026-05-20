@@ -18,6 +18,7 @@ import {
 } from "@/app/lib/usageReportsClient";
 import { isUserRegistered, type UserProfile } from "@/app/lib/profileClient";
 import { isOwnPost, unmarkOwnPost } from "@/app/lib/ownPostsClient";
+import OwnPostShareLinks from "@/app/components/OwnPostShareLinks";
 import {
   getDefaultStocks,
   loadCustomStocks,
@@ -117,6 +118,9 @@ export default function MyPostsSection({
       <h2 className="text-lg font-bold text-slate-900">マイ投稿</h2>
       <p className="mt-1 text-xs text-slate-500">
         この端末に保存した「届いた」「使った」の一覧です。編集は銘柄ページで行えます。
+        <Link href="/faq#data-transparency" className="ml-1 text-blue-600 hover:underline">
+          データの保存と予測への使い方（よくある質問・FAQ）
+        </Link>
       </p>
 
       {rows.length === 0 ? (
@@ -160,7 +164,7 @@ export default function MyPostsSection({
                       {formatRelativeTime(r.createdAt)}
                     </p>
                   </div>
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
                     <Link
                       href={editHref(row)}
                       className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
@@ -174,6 +178,13 @@ export default function MyPostsSection({
                     >
                       削除
                     </button>
+                    <OwnPostShareLinks
+                      kind="arrival"
+                      stockCode={code}
+                      stockName={name}
+                      postId={r.id}
+                      arrivalPhase={ph}
+                    />
                   </div>
                 </li>
               );
@@ -204,7 +215,7 @@ export default function MyPostsSection({
                     {formatRelativeTime(u.createdAt)}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
                   <Link
                     href={editHref(row)}
                     className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
@@ -218,6 +229,12 @@ export default function MyPostsSection({
                   >
                     削除
                   </button>
+                  <OwnPostShareLinks
+                    kind="usage"
+                    stockCode={code}
+                    stockName={name}
+                    postId={u.id}
+                  />
                 </div>
               </li>
             );

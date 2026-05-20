@@ -21,7 +21,7 @@ export default function TermsPage() {
         </nav>
 
         <h1 className="mt-4 text-2xl font-bold text-slate-900 sm:text-3xl">利用規約</h1>
-        <p className="mt-2 text-xs text-slate-500">最終更新日: 2026年5月11日</p>
+        <p className="mt-2 text-xs text-slate-500">最終更新日: 2026年5月16日</p>
 
         <article className="mt-6 space-y-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-7 text-slate-700 sm:p-6">
           <section>
@@ -35,6 +35,17 @@ export default function TermsPage() {
             <h2 className="text-base font-bold text-slate-900">第2条（ユーザー投稿）</h2>
             <p className="mt-2">
               ユーザーは「届いた！」「使った！」などの投稿を行うことができます。投稿内容については、ユーザー自身が責任を負うものとします。
+            </p>
+            <p className="mt-2">
+              当サイトは、<strong>実際に届いた・使った事実に基づく正直な投稿</strong>を求めます。データの保存場所・予測への利用・統計からの除外など、収集と処理の透明性については
+              <Link href="/privacy" className="text-blue-600 hover:underline">
+                プライバシーポリシー
+              </Link>
+              および
+              <Link href="/faq#data-transparency" className="text-blue-600 hover:underline">
+                よくある質問・FAQ（投稿データと予測）
+              </Link>
+              をご確認ください。
             </p>
           </section>
 
@@ -65,6 +76,9 @@ export default function TermsPage() {
               本サイトに掲載されたコンテンツ（投稿、画像、データベース、デザイン、ソースコード等の一切）の著作権は、当該コンテンツを作成したユーザーまたは運営に帰属します。
             </p>
             <p className="mt-2">
+              当サイトが独自に整理・編集した銘柄情報、到着時期の説明、投稿の集計、予測表示、関連銘柄リンク等のデータベースおよび編集物について、運営は著作権その他の知的財産権を留保します。
+            </p>
+            <p className="mt-2">
               ユーザーが本サイトに投稿したコンテンツについては、運営がサイト上での表示・複製・改変（誤字修正等）・配信のために必要な範囲で無償・非独占的に利用できる権利を、ユーザーは運営に許諾するものとします。
             </p>
           </section>
@@ -76,6 +90,7 @@ export default function TermsPage() {
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-6">
               <li>本サイトの掲載情報をクローラー・自動化ツール等で大量取得すること</li>
+              <li>検索結果ページ、銘柄ページ、投稿一覧、sitemap 等を機械的に巡回し、継続的にデータを抽出・保存すること</li>
               <li>取得した情報を AI モデルの学習データとして利用すること</li>
               <li>取得した情報を再構成して類似のデータベース・サービス・アプリを構築・公開すること</li>
               <li>取得した情報を有償・無償を問わず第三者に提供・販売すること</li>

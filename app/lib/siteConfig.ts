@@ -6,10 +6,20 @@
  *   NEXT_PUBLIC_SITE_URL=https://itsukuru.app
  * のように指定する。
  */
+const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+/** 無効な URL だと layout の metadataBase でビルド・起動が落ちるため検証してフォールバックする */
 export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://itsukuru.app";
+  rawSiteUrl && /^https?:\/\//i.test(rawSiteUrl)
+    ? rawSiteUrl
+    : "https://itsukuru.app";
 
 export const SITE_NAME = "いつクル？";
 
-export const SITE_DESCRIPTION =
-  "株主優待がいつ届く？いつ使った？をみんなで共有するサイト。銘柄ごとの「届いた！」「使った！」投稿を集めて、次回の到着日を予測し、優待の活用アイデアもシェアできます。";
+/** トップヒーローなどで見出し下に二段で置くキャッチコピー */
+export const SITE_TAGLINE_PRIMARY =
+  "「届いた！」「使った！」を投稿して、次の到着時期をみんなで予測する";
+
+export const SITE_TAGLINE_SECONDARY = "株主優待共有コミュニティ";
+
+/** メタ description / OG 等・一文で使うとき */
+export const SITE_DESCRIPTION = `${SITE_TAGLINE_PRIMARY}${SITE_TAGLINE_SECONDARY}。`;

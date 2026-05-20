@@ -70,13 +70,21 @@ export default function DateYyyymmddField({
   const parsed = parseIso(valueIso);
 
   const currentYear = new Date().getFullYear();
-  const yearStart = currentYear - 20;
-  const yearEnd = currentYear + 2;
+  /** 現在年を中心に直近数年のみ（例: 2026 → 2026…2023） */
+  const yearMin = currentYear - 3;
+  const yearMax = currentYear;
   const years = useMemo(() => {
     const list: number[] = [];
-    for (let y = yearEnd; y >= yearStart; y -= 1) list.push(y);
+    for (let y = yearMax; y >= yearMin; y -= 1) list.push(y);
+    const pickedY = parsed?.y ?? fallbackParsed.y;
+    if (pickedY < yearMin || pickedY > yearMax) {
+      if (!list.includes(pickedY)) {
+        list.push(pickedY);
+        list.sort((a, b) => b - a);
+      }
+    }
     return list;
-  }, [yearStart, yearEnd]);
+  }, [yearMin, yearMax, parsed?.y, fallbackParsed.y]);
 
   const unset = optional && !parsed;
   const eff = unset ? null : (parsed ?? fallbackParsed);

@@ -28,16 +28,18 @@ export default function ArrivalForecastSection({ reports, benefit }: Props) {
       pendingCount: pending.length,
       phaseData: {
         notice: {
-          forecast: notice.length > 0 ? computeArrivalForecast(notice) : null,
+          forecast:
+            notice.length > 0 ? computeArrivalForecast(notice, { benefit }) : null,
           count: notice.length,
         },
         actual: {
-          forecast: actual.length > 0 ? computeArrivalForecast(actual) : null,
+          forecast:
+            actual.length > 0 ? computeArrivalForecast(actual, { benefit }) : null,
           count: actual.length,
         },
       },
     };
-  }, [reports]);
+  }, [reports, benefit]);
 
   const explicitExpected = benefit?.expectedArrival?.trim() ?? "";
   const noticeArrivalText = benefit?.noticeArrival?.trim() ?? "";
@@ -84,30 +86,26 @@ export default function ArrivalForecastSection({ reports, benefit }: Props) {
 
   return (
     <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      {/* 優待品(メイン 80%) と 案内(20%) */}
-      <div className="grid gap-2 sm:grid-cols-5">
-        <div className="sm:col-span-4">
-          <MainActualCard
-            forecast={phaseData.actual.forecast}
-            count={phaseData.actual.count}
-            companyText={actualArrivalText}
-            inferred={inferred}
-          />
-        </div>
-        <div className="sm:col-span-1">
-          <SubNoticeCard
-            forecast={phaseData.notice.forecast}
-            count={phaseData.notice.count}
-            companyText={noticeArrivalText}
-          />
-        </div>
+      {/* 上: 案内・申込（補助） / 下: 優待品到着（メイン・大号表示） */}
+      <div className="flex flex-col gap-2">
+        <SubNoticeCard
+          forecast={phaseData.notice.forecast}
+          count={phaseData.notice.count}
+          companyText={noticeArrivalText}
+        />
+        <MainActualCard
+          forecast={phaseData.actual.forecast}
+          count={phaseData.actual.count}
+          companyText={actualArrivalText}
+          inferred={inferred}
+        />
       </div>
     </section>
   );
 }
 
 /**
- * メインの優待品カード（80%幅）。
+ * メインの優待品カード（縦レイアウトでは下段・大号の本文）。
  *
  * 表示の優先順位:
  *   1. 企業案内（actualArrival）があれば「いつ頃」をメイン表示
@@ -139,12 +137,12 @@ function MainActualCard({
     sourceLabel = "🏢 企業公式";
     subText =
       hasForecast && forecast
-        ? `投稿予測: ${formatMonthDay(forecast.nextEstimate)}頃（${count}件）`
+        ? `投稿からの集計: ${formatMonthDay(forecast.nextEstimate)}頃（到着投稿${forecast.rawReportCount}件中${forecast.totalReports}件を使用${forecast.excludedReportCount > 0 ? `・外れ値除外${forecast.excludedReportCount}件` : ""}）`
         : null;
   } else if (hasForecast && forecast) {
     mainText = `${formatMonthDay(forecast.nextEstimate)}頃`;
-    sourceLabel = `📊 投稿予測 ${count}件`;
-    subText = `あと${forecast.daysUntil}日`;
+    sourceLabel = `📊 投稿からの集計 ${forecast.rawReportCount}件`;
+    subText = `あと${forecast.daysUntil}日（統計に${forecast.totalReports}件を使用${forecast.excludedReportCount > 0 ? `・除外${forecast.excludedReportCount}件` : ""}）`;
     if (forecast.cycles.length > 1) {
       subText += ` ・ 次々回 ${formatMonthDay(forecast.cycles[1].nextEstimate)}頃`;
     }
@@ -182,7 +180,7 @@ function MainActualCard({
 }
 
 /**
- * 小さい案内カード（20%幅）。最小限の情報のみ。
+ * 案内・申込カード（縦レイアウトでは上段・コンパクト）。
  */
 function SubNoticeCard({
   forecast,
@@ -200,7 +198,7 @@ function SubNoticeCard({
 
   return (
     <div
-      className={`flex h-full flex-col rounded-xl border p-3 ${
+      className={`flex flex-col rounded-xl border p-3 sm:p-3.5 ${
         isActive
           ? meta.colorClass
           : "border-dashed border-slate-200 bg-slate-50 text-slate-500"
@@ -210,7 +208,9 @@ function SubNoticeCard({
         <span className="text-lg" aria-hidden>
           {meta.emoji}
         </span>
-        <p className="text-[10px] font-semibold opacity-80">{meta.label}</p>
+        <p className="text-[10px] font-semibold opacity-80">
+          {meta.label}が届く
+        </p>
       </div>
 
       {hasCompanyInfo ? (
@@ -219,7 +219,12 @@ function SubNoticeCard({
           <p className="text-[9px] opacity-70">🏢 企業案内</p>
           {hasForecast && forecast && (
             <p className="mt-1 text-[10px] opacity-75">
-              投稿:{formatMonthDay(forecast.nextEstimate)}頃（{count}件）
+              投稿: {formatMonthDay(forecast.nextEstimate)}頃（{forecast.rawReportCount}件中
+              {forecast.totalReports}件で集計
+              {forecast.excludedReportCount > 0
+                ? `・除外${forecast.excludedReportCount}件`
+                : ""}
+              ）
             </p>
           )}
         </div>
@@ -229,7 +234,8 @@ function SubNoticeCard({
             {formatMonthDay(forecast.nextEstimate)}頃
           </p>
           <p className="text-[10px] opacity-75">
-            あと{forecast.daysUntil}日（{count}件）
+            あと{forecast.daysUntil}日（{forecast.rawReportCount}件中{forecast.totalReports}件で集計
+            {forecast.excludedReportCount > 0 ? `・除外${forecast.excludedReportCount}件` : ""}）
           </p>
         </div>
       ) : (

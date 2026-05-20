@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * 現在はサイトから読み込んでいません（ブラウザの「ホーム画面に追加」施策をいったん停止）。
+ * 再開するとき: HomePageClient にこのコンポーネントと import を戻し、layout.tsx の metadata に
+ * `manifest` / `appleWebApp` と `other` 内のモバイル向けメタタグを復元してください。
+ */
+
 import { useEffect, useState } from "react";
 
 /**

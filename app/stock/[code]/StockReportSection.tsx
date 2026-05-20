@@ -21,16 +21,26 @@ import {
   POST_COOLDOWN_MS,
 } from "@/app/lib/ownPostsClient";
 import HelpfulButton from "@/app/components/HelpfulButton";
+import OwnPostShareLinks from "@/app/components/OwnPostShareLinks";
 import PostImage from "@/app/components/PostImage";
 import DateYyyymmddField from "@/app/components/DateYyyymmddField";
 import PrefectureSelect from "@/app/components/PrefectureSelect";
 
 type Props = {
   stockCode: string;
+  stockName: string;
   reports: BenefitReport[];
   onAddReport: (report: BenefitReport) => void;
   onUpdateReport?: (reportId: string, patch: Partial<BenefitReport>) => void;
   onDeleteReport?: (reportId: string) => void;
+  /** 一覧の先頭だけ表示（省略時は全件） */
+  listPreviewLimit?: number;
+  /** listPreviewLimit 指定時の「すべて見る」リンク先 */
+  seeAllListHref?: string;
+  /** 投稿フォームを出さない（投稿一覧ページ用） */
+  hideComposer?: boolean;
+  /** 銘柄の届いた・使ったの一覧ページ（任意） */
+  postsArchiveHref?: string;
 };
 
 type SortKey = "date" | "helpful";
@@ -38,10 +48,15 @@ type PhaseFilter = "all" | ReportPhase;
 
 export default function StockReportSection({
   stockCode,
+  stockName,
   reports,
   onAddReport,
   onUpdateReport,
   onDeleteReport,
+  listPreviewLimit,
+  seeAllListHref,
+  hideComposer = false,
+  postsArchiveHref,
 }: Props) {
   const [reporterName, setReporterName] = useState("");
   const [region, setRegion] = useState("");
@@ -53,6 +68,7 @@ export default function StockReportSection({
   const [phaseFilter, setPhaseFilter] = useState<PhaseFilter>("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [cooldownMs, setCooldownMs] = useState(0);
+  const [arrivalAnchorId, setArrivalAnchorId] = useState("");
   const pendingDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -81,6 +97,17 @@ export default function StockReportSection({
     return () => clearInterval(t);
   }, [cooldownMs]);
 
+  useEffect(() => {
+    const syncHash = () => {
+      if (typeof window === "undefined") return;
+      const m = window.location.hash.match(/^#arrival-report-(.+)$/);
+      setArrivalAnchorId(m?.[1] ?? "");
+    };
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [stockCode]);
+
   const filteredReports = useMemo(() => {
     if (phaseFilter === "all") return reports;
     return reports.filter((r) => getEffectivePhase(r) === phaseFilter);
@@ -100,6 +127,15 @@ export default function StockReportSection({
     }
     return copy;
   }, [filteredReports, sortKey]);
+
+  const visibleArrivalReports = useMemo(() => {
+    if (listPreviewLimit == null) return sortedReports;
+    const base = sortedReports.slice(0, listPreviewLimit);
+    if (!arrivalAnchorId) return base;
+    const hit = sortedReports.find((r) => r.id === arrivalAnchorId);
+    if (!hit || base.some((r) => r.id === hit.id)) return base;
+    return [...base, hit];
+  }, [sortedReports, listPreviewLimit, arrivalAnchorId]);
 
   const phaseCounts = useMemo(() => {
     let notice = 0;
@@ -150,6 +186,13 @@ export default function StockReportSection({
   };
 
   const confirmPostPending = () => {
+    if (
+      !window.confirm(
+        "「まだ届いていない」として今日の日付で記録し、投稿しますか？\n（取り消しはマイページやこの一覧の削除から行えます）"
+      )
+    ) {
+      return;
+    }
     pendingDialogRef.current?.close();
     postPending();
   };
@@ -161,6 +204,17 @@ export default function StockReportSection({
     }
     if (cooldownRemainingMs() > 0) {
       setCooldownMs(cooldownRemainingMs());
+      return;
+    }
+
+    const phaseLabel =
+      phase === "notice" ? "案内・申込書が届いた" : "優待品が届いた";
+    const dateLabel = formatCalendarDateJa(arrivalDate);
+    if (
+      !window.confirm(
+        `「${phaseLabel}」として到着日「${dateLabel}」で投稿しますか？\n（取り消しはマイページやこの一覧の削除から行えます）`
+      )
+    ) {
       return;
     }
 
@@ -208,171 +262,21 @@ export default function StockReportSection({
       id="post-arrival"
       className="mt-6 scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-slate-900">みんなの投稿</h2>
-        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-          {sortedReports.length}件
-        </span>
-      </div>
-
-      <div className="mt-4 space-y-4">
-        <div
-          id="post-not-yet"
-          className="scroll-mt-20 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold text-slate-800">まだ届いていない</h3>
-            <button
-              type="button"
-              onClick={requestPostPending}
-              disabled={cooldownMs > 0}
-              className={`shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition ${
-                cooldownMs > 0
-                  ? "cursor-not-allowed opacity-50"
-                  : "hover:border-slate-400 hover:bg-slate-50"
-              }`}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {postsArchiveHref ? (
+            <Link
+              href={postsArchiveHref}
+              className="text-xs font-medium text-blue-600 hover:underline"
             >
-              記録する
-            </button>
-          </div>
+              この銘柄の投稿一覧
+            </Link>
+          ) : null}
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+            {sortedReports.length}件
+          </span>
         </div>
-
-        <form
-          className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
-          onSubmit={handleSubmit}
-        >
-          <h3 className="text-sm font-semibold text-slate-900">届いたことを投稿</h3>
-          <div>
-            <p className="mb-1.5 text-xs font-semibold text-slate-700">
-              何が届きましたか？
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setPhase("actual")}
-                className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
-                  phase === "actual"
-                    ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-900"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                🎁 優待品
-                <span className="block text-[10px] font-normal opacity-75">
-                  商品・チケット・QUOカード等
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPhase("notice")}
-                className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
-                  phase === "notice"
-                    ? "border-indigo-500 bg-indigo-50 font-semibold text-indigo-900"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                ✉️ 案内・申込書
-                <span className="block text-[10px] font-normal opacity-75">
-                  カタログ・申込書・通知のみ
-                </span>
-              </button>
-            </div>
-            <p className="mt-1 text-[10px] leading-tight text-slate-500">
-              ※ カタログギフトのように「先に案内、後で品物」と2回届く優待は、それぞれを別々に投稿してください
-            </p>
-          </div>
-          <DateYyyymmddField
-            id="arrival-date-main"
-            label="到着日"
-            valueIso={arrivalDate}
-            onChangeIso={setArrivalDate}
-            fallbackIso={getTodayIsoDate()}
-            required
-          />
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 rounded border-slate-300"
-              checked={wantsComment}
-              onChange={(e) => setWantsComment(e.target.checked)}
-            />
-            コメントを付ける（任意）
-          </label>
-          {wantsComment && (
-            <textarea
-              placeholder={
-                phase === "notice"
-                  ? "案内・申込書の内容やメモ（例: カタログギフトの案内状が届きました）"
-                  : "到着した優待内容やメモ（例: 食事優待券が3,000円分届きました）"
-              }
-              className="h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-            />
-          )}
-          <button
-            type="submit"
-            disabled={cooldownMs > 0}
-            className={`w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${
-              cooldownMs > 0
-                ? "cursor-not-allowed bg-slate-400"
-                : phase === "notice"
-                  ? "bg-indigo-600 hover:bg-indigo-700"
-                  : "bg-emerald-600 hover:bg-emerald-700"
-            }`}
-          >
-            {cooldownMs > 0
-              ? `連続投稿防止中... あと${Math.ceil(cooldownMs / 1000)}秒`
-              : phase === "notice"
-                ? "「✉️ 案内が届いた」を投稿する"
-                : "「🎁 優待品が届いた」を投稿する"}
-          </button>
-        </form>
-
-        <details className="rounded-xl border border-slate-200 bg-white p-3">
-          <summary className="cursor-pointer text-xs font-semibold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
-            表示名・地域（なくても投稿できます）
-          </summary>
-          <div className="mt-3 grid gap-4 border-t border-slate-100 pt-3 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="arrival-reporter-name"
-                className="mb-1 block text-xs font-medium text-slate-800"
-              >
-                投稿者名
-              </label>
-              <input
-                id="arrival-reporter-name"
-                type="text"
-                autoComplete="nickname"
-                placeholder="例: たろう、ニックネーム"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                value={reporterName}
-                onChange={(event) => setReporterName(event.target.value)}
-                aria-describedby="arrival-reporter-hint"
-              />
-              <p id="arrival-reporter-hint" className="mt-1 text-[11px] text-slate-500">
-                空欄のときは「匿名」として表示されます。
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="arrival-region"
-                className="mb-1 block text-xs font-medium text-slate-800"
-              >
-                お住まいの地域（任意）
-              </label>
-              <PrefectureSelect
-                id="arrival-region"
-                value={region}
-                onChange={setRegion}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              />
-              <p className="mt-1 text-[11px] text-slate-500">
-                都道府県など。未選択のときは投稿に地域は表示されません。
-              </p>
-            </div>
-          </div>
-        </details>
       </div>
 
       {reports.length > 0 && (
@@ -447,7 +351,7 @@ export default function StockReportSection({
               : "「🎁 優待品」の投稿はまだありません。"}
           </p>
         )}
-        {sortedReports.map((report) => {
+        {visibleArrivalReports.map((report) => {
           const reportPhase = getEffectivePhase(report);
           const phaseMeta = PHASE_META[reportPhase];
           const own = isOwnPost("report", report.id);
@@ -514,7 +418,7 @@ export default function StockReportSection({
                 <PostImage src={report.imageUrl} alt="優待写真" />
               )}
               <div className="mt-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1 text-[10px]">
+                <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px]">
                   {own ? (
                     <>
                       <button
@@ -531,6 +435,13 @@ export default function StockReportSection({
                       >
                         削除
                       </button>
+                      <OwnPostShareLinks
+                        kind="arrival"
+                        stockCode={stockCode}
+                        stockName={stockName}
+                        postId={report.id}
+                        arrivalPhase={reportPhase}
+                      />
                     </>
                   ) : (
                     <Link
@@ -552,11 +463,186 @@ export default function StockReportSection({
             </article>
           );
         })}
+        {listPreviewLimit != null &&
+          seeAllListHref &&
+          sortedReports.length > listPreviewLimit && (
+            <p className="pt-1 text-center text-xs text-slate-600">
+              直近{listPreviewLimit}件を表示しています（この条件で全{sortedReports.length}件）。
+              <Link
+                href={seeAllListHref}
+                className="ml-1 font-medium text-blue-600 hover:underline"
+              >
+                すべての到着投稿を見る
+              </Link>
+            </p>
+          )}
       </div>
+
+      {!hideComposer && (
+        <div className="mt-6 space-y-4 border-t border-slate-100 pt-6">
+          <div
+            id="post-not-yet"
+            className="scroll-mt-20 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-semibold text-slate-800">まだ届いていない</h3>
+              <button
+                type="button"
+                onClick={requestPostPending}
+                disabled={cooldownMs > 0}
+                className={`shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm transition ${
+                  cooldownMs > 0
+                    ? "cursor-not-allowed opacity-50"
+                    : "hover:border-slate-400 hover:bg-slate-50"
+                }`}
+              >
+                記録する
+              </button>
+            </div>
+          </div>
+
+          <form
+            className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
+            onSubmit={handleSubmit}
+          >
+            <h3 className="text-sm font-semibold text-slate-900">届いたことを投稿</h3>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-slate-700">
+                何が届きましたか？
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPhase("actual")}
+                  className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                    phase === "actual"
+                      ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-900"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  🎁 優待品
+                  <span className="block text-[10px] font-normal opacity-75">
+                    商品・チケット・QUOカード等
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPhase("notice")}
+                  className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                    phase === "notice"
+                      ? "border-indigo-500 bg-indigo-50 font-semibold text-indigo-900"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  ✉️ 案内・申込書
+                  <span className="block text-[10px] font-normal opacity-75">
+                    カタログ・申込書・通知のみ
+                  </span>
+                </button>
+              </div>
+              <p className="mt-1 text-[10px] leading-tight text-slate-500">
+                ※ カタログギフトのように「先に案内、後で品物」と2回届く優待は、それぞれを別々に投稿してください
+              </p>
+            </div>
+            <DateYyyymmddField
+              id="arrival-date-main"
+              label="到着日"
+              valueIso={arrivalDate}
+              onChangeIso={setArrivalDate}
+              fallbackIso={getTodayIsoDate()}
+              required
+            />
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-slate-300"
+                checked={wantsComment}
+                onChange={(e) => setWantsComment(e.target.checked)}
+              />
+              コメントを付ける（任意）
+            </label>
+            {wantsComment && (
+              <textarea
+                placeholder={
+                  phase === "notice"
+                    ? "案内・申込書の内容やメモ（例: カタログギフトの案内状が届きました）"
+                    : "到着した優待内容やメモ（例: 食事優待券が3,000円分届きました）"
+                }
+                className="h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+              />
+            )}
+            <button
+              type="submit"
+              disabled={cooldownMs > 0}
+              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${
+                cooldownMs > 0
+                  ? "cursor-not-allowed bg-slate-400"
+                  : phase === "notice"
+                    ? "bg-indigo-600 hover:bg-indigo-700"
+                    : "bg-emerald-600 hover:bg-emerald-700"
+              }`}
+            >
+              {cooldownMs > 0
+                ? `連続投稿防止中... あと${Math.ceil(cooldownMs / 1000)}秒`
+                : phase === "notice"
+                  ? "「✉️ 案内が届いた」を投稿する"
+                  : "「🎁 優待品が届いた」を投稿する"}
+            </button>
+          </form>
+
+          <details className="rounded-xl border border-slate-200 bg-white p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
+              表示名・地域（なくても投稿できます）
+            </summary>
+            <div className="mt-3 grid gap-4 border-t border-slate-100 pt-3 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="arrival-reporter-name"
+                  className="mb-1 block text-xs font-medium text-slate-800"
+                >
+                  投稿者名
+                </label>
+                <input
+                  id="arrival-reporter-name"
+                  type="text"
+                  autoComplete="nickname"
+                  placeholder="例: たろう、ニックネーム"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={reporterName}
+                  onChange={(event) => setReporterName(event.target.value)}
+                  aria-describedby="arrival-reporter-hint"
+                />
+                <p id="arrival-reporter-hint" className="mt-1 text-[11px] text-slate-500">
+                  空欄のときは「匿名」として表示されます。
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor="arrival-region"
+                  className="mb-1 block text-xs font-medium text-slate-800"
+                >
+                  お住まいの地域（任意）
+                </label>
+                <PrefectureSelect
+                  id="arrival-region"
+                  value={region}
+                  onChange={setRegion}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  都道府県など。未選択のときは投稿に地域は表示されません。
+                </p>
+              </div>
+            </div>
+          </details>
+        </div>
+      )}
 
       <dialog
         ref={pendingDialogRef}
-        className="max-w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-4 text-slate-900 shadow-xl [&::backdrop]:bg-slate-900/25"
+        className="fixed left-1/2 top-1/2 z-[200] m-0 w-[min(22rem,calc(100vw-2rem))] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 text-slate-900 shadow-xl [&::backdrop]:bg-slate-900/40"
         onClick={(e) => {
           if (e.target === pendingDialogRef.current) cancelPostPending();
         }}

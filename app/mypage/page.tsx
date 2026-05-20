@@ -14,7 +14,6 @@ import {
 } from "@/app/lib/favoritesClient";
 import {
   loadReportsForStock,
-  formatCalendarDateJa,
 } from "@/app/lib/reportsClient";
 import { computeArrivalForecast, formatMonthDay } from "@/app/lib/forecastClient";
 import { loadBenefitForStock } from "@/app/lib/benefitsClient";
@@ -48,16 +47,16 @@ import {
   triggerUpcomingArrivalNotifications,
   type NotificationPermissionState,
 } from "@/app/lib/notificationsClient";
-import type { StockBenefit } from "@/app/data/stockBenefits";
+import { getEffectiveConfidence, type StockBenefit } from "@/app/data/stockBenefits";
+import { approxNextArrivalFromRightsMonth } from "@/app/lib/rightsArrivalApprox";
+import {
+  computeHoldingRows,
+  computeWatchingRows,
+  type StockRow,
+} from "@/app/mypage/holdingRowsModel";
+import { StockRowList } from "@/app/mypage/MyStockRowList";
 
-type StockRow = {
-  stock: StockRecord;
-  benefit: StockBenefit | null;
-  shares: number;
-  nextEstimateLabel: string;
-  daysUntil: number | null;
-  latestArrival: string | null;
-};
+const HOLDINGS_PREVIEW_LIMIT = 5;
 
 const formatJapaneseDate = (iso: string): string => {
   const d = new Date(iso);
@@ -120,21 +119,62 @@ export default function MyPage() {
     }
   }, []);
 
+  /**
+   * 各月セルには「優待が届く目安」の属する暦月で銘柄を並べる（権利確定月ベースではない）。
+   * 到着報告からの予測があれば forecast の各サイクル、無ければ権利月末＋約3か月後（/calendar と同様）。
+   */
   const yearCalendar = useMemo(() => {
     const byCode = new Map(stocks.map((s) => [s.code, s]));
-    const buckets: Record<number, Array<{ stock: StockRecord; benefit: StockBenefit; shares: number; eligible: boolean }>> = {};
+    const buckets: Record<
+      number,
+      Array<{ stock: StockRecord; benefit: StockBenefit; shares: number; eligible: boolean }>
+    > = {};
     for (let m = 1; m <= 12; m += 1) {
       buckets[m] = [];
     }
+
+    const now = new Date();
+
+    const addToBucket = (
+      calendarMonth: number,
+      item: {
+        stock: StockRecord;
+        benefit: StockBenefit;
+        shares: number;
+        eligible: boolean;
+      }
+    ) => {
+      const list = buckets[calendarMonth];
+      if (!list.some((row) => row.stock.code === item.stock.code)) {
+        list.push(item);
+      }
+    };
+
     for (const [code, shares] of Object.entries(holdings)) {
       const stock = byCode.get(code);
       if (!stock) continue;
       const benefit = loadBenefitForStock(code);
       if (!benefit) continue;
-      const months = parseRightsMonths(benefit.rightsMonths);
+      if (getEffectiveConfidence(benefit) === "abolished") continue;
+
       const eligible = (benefit.minShares ?? 0) === 0 ? true : shares >= benefit.minShares;
-      for (const m of months) {
-        buckets[m].push({ stock, benefit, shares, eligible });
+      const row = { stock, benefit, shares, eligible };
+
+      const forecast = computeArrivalForecast(loadReportsForStock(code), {
+        benefit,
+      });
+
+      if (forecast) {
+        for (const cycle of forecast.cycles) {
+          const m = cycle.nextEstimate.getMonth() + 1;
+          addToBucket(m, row);
+        }
+      } else {
+        const rightsMonthsParsed = parseRightsMonths(benefit.rightsMonths);
+        for (const rm of rightsMonthsParsed) {
+          const when = approxNextArrivalFromRightsMonth(rm, now);
+          addToBucket(when.getMonth() + 1, row);
+        }
       }
     }
     return buckets;
@@ -173,67 +213,20 @@ export default function MyPage() {
     }
   };
 
-  const buildRow = (
-    stock: StockRecord,
-    byCodeBenefit: (code: string) => StockBenefit | null
-  ): StockRow => {
-    const reports = loadReportsForStock(stock.code);
-    const forecast = computeArrivalForecast(reports);
-    const benefit = byCodeBenefit(stock.code);
-    const latestArrival =
-      reports
-        .slice()
-        .sort((a, b) => b.arrivalDate.localeCompare(a.arrivalDate))[0]
-        ?.arrivalDate ?? null;
-    const shares = holdings[stock.code] ?? 0;
+  const holdingRows = useMemo<StockRow[]>(
+    () => computeHoldingRows(holdings, stocks),
+    [holdings, stocks]
+  );
 
-    return {
-      stock,
-      benefit,
-      shares,
-      nextEstimateLabel: forecast ? formatMonthDay(forecast.nextEstimate) : "未予測",
-      daysUntil: forecast ? forecast.daysUntil : null,
-      latestArrival,
-    };
-  };
+  const holdingPreviewRows = useMemo(
+    () => holdingRows.slice(0, HOLDINGS_PREVIEW_LIMIT),
+    [holdingRows]
+  );
 
-  const sortByUpcoming = (rows: StockRow[]): StockRow[] =>
-    [...rows].sort((a, b) => {
-      if (a.daysUntil === null && b.daysUntil === null) return 0;
-      if (a.daysUntil === null) return 1;
-      if (b.daysUntil === null) return -1;
-      return a.daysUntil - b.daysUntil;
-    });
-
-  const holdingRows = useMemo<StockRow[]>(() => {
-    const byCode = new Map(stocks.map((s) => [s.code, s]));
-    const rows: StockRow[] = [];
-
-    for (const [code, shares] of Object.entries(holdings)) {
-      if (!(shares > 0)) continue;
-      const stock = byCode.get(code);
-      if (!stock) continue;
-      rows.push(buildRow(stock, loadBenefitForStock));
-    }
-
-    return sortByUpcoming(rows);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holdings, stocks]);
-
-  const watchingRows = useMemo<StockRow[]>(() => {
-    const byCode = new Map(stocks.map((s) => [s.code, s]));
-    const rows: StockRow[] = [];
-
-    for (const code of favoriteCodes) {
-      if ((holdings[code] ?? 0) > 0) continue;
-      const stock = byCode.get(code);
-      if (!stock) continue;
-      rows.push(buildRow(stock, loadBenefitForStock));
-    }
-
-    return sortByUpcoming(rows);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [favoriteCodes, holdings, stocks]);
+  const watchingRows = useMemo<StockRow[]>(
+    () => computeWatchingRows(favoriteCodes, holdings, stocks),
+    [favoriteCodes, holdings, stocks]
+  );
 
   const holdingCount = holdingRows.length;
   const watchingCount = watchingRows.length;
@@ -245,6 +238,14 @@ export default function MyPage() {
   };
 
   const removeHolding = (code: string) => {
+    const name = stocks.find((s) => s.code === code)?.name ?? code;
+    if (
+      !confirm(
+        `「${name}（${code}）」を保有銘柄から外しますか？\n株数の登録が消え、年間カレンダーなどの表示からも外れます。`
+      )
+    ) {
+      return;
+    }
     const next = setHoldingShares(code, 0);
     setHoldings(next);
   };
@@ -597,9 +598,24 @@ export default function MyPage() {
           </div>
 
           <div className="mt-5 grid grid-cols-3 gap-3">
-            <StatBlock label="保有銘柄" value={holdingCount} unit="件" />
-            <StatBlock label="キニナル" value={watchingCount} unit="件" />
-            <StatBlock label="投稿件数" value={myPostsCount} unit="件" />
+            <StatBlock
+              label="保有銘柄"
+              value={holdingCount}
+              unit="件"
+              href={holdingCount > 0 ? "/mypage/holdings" : "#my-holdings"}
+            />
+            <StatBlock
+              label="キニナル"
+              value={watchingCount}
+              unit="件"
+              href="#my-watchlist"
+            />
+            <StatBlock
+              label="投稿件数"
+              value={myPostsCount}
+              unit="件"
+              href="#my-posts"
+            />
           </div>
         </section>
 
@@ -609,13 +625,28 @@ export default function MyPage() {
           <AuthSection />
         </div>
 
-        <section className="mt-6">
-          <div className="flex items-center justify-between">
+        <section id="my-holdings" className="mt-6 scroll-mt-20">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <h2 className="text-lg font-bold text-slate-900">保有銘柄の到着状況</h2>
-            <Link href="/search" className="text-xs text-blue-600 hover:underline">
-              銘柄を探す ›
-            </Link>
+            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+              {holdingRows.length > HOLDINGS_PREVIEW_LIMIT ? (
+                <Link
+                  href="/mypage/holdings"
+                  className="text-xs font-semibold text-blue-600 hover:underline"
+                >
+                  一覧（全{holdingRows.length}件）›
+                </Link>
+              ) : null}
+              <Link href="/search" className="text-xs text-blue-600 hover:underline">
+                銘柄を探す ›
+              </Link>
+            </div>
           </div>
+          {holdingRows.length > HOLDINGS_PREVIEW_LIMIT ? (
+            <p className="mt-1 text-[11px] text-slate-500">
+              到着投稿の予測日が近い順の先頭{HOLDINGS_PREVIEW_LIMIT}件です。投稿が無い銘柄は企業案内・一般的な目安で並びます。
+            </p>
+          ) : null}
 
           {holdingRows.length === 0 ? (
             <p className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
@@ -623,15 +654,28 @@ export default function MyPage() {
               詳細ページの <span className="font-semibold text-blue-600">＋ 保有銘柄に追加</span> から株数を登録しましょう。
             </p>
           ) : (
-            <StockRowList
-              rows={holdingRows}
-              variant="holding"
-              onRemove={removeHolding}
-            />
+            <>
+              <StockRowList
+                rows={holdingPreviewRows}
+                variant="holding"
+                onRemove={removeHolding}
+              />
+              {holdingRows.length > HOLDINGS_PREVIEW_LIMIT ? (
+                <div className="mt-4 text-center">
+                  <Link
+                    href="/mypage/holdings"
+                    className="inline-block rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100"
+                  >
+                    あと{holdingRows.length - HOLDINGS_PREVIEW_LIMIT}件を含む全{holdingRows.length}
+                    件を保有銘柄一覧で見る ›
+                  </Link>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
 
-        <section className="mt-8">
+        <section id="my-watchlist" className="mt-8 scroll-mt-20">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-900">
               ☆ キニナル銘柄
@@ -666,6 +710,7 @@ export default function MyPage() {
             </span>
           </div>
           <p className="mt-1 text-xs text-slate-500">
+            権利確定月ではなく、優待が届く目安の月に並べています。届いた報告がある銘柄はその傾向に基づき、無い銘柄は権利確定月末からおよそ3か月後を目安に配置します。
             保有株数は各銘柄の詳細ページの「＋ 保有銘柄に追加」から登録できます。
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -863,104 +908,41 @@ export default function MyPage() {
   );
 }
 
-function StatBlock({ label, value, unit }: { label: string; value: number; unit: string }) {
+function StatBlock({
+  label,
+  value,
+  unit,
+  href,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  href?: string;
+}) {
+  const countText = `${value.toLocaleString("ja-JP")}${unit}`;
+  const valueBlock = (
+    <p className="text-2xl font-extrabold tabular-nums tracking-tight">
+      {value.toLocaleString("ja-JP")}
+      <span className="ml-1 text-xs font-medium text-slate-500">{unit}</span>
+    </p>
+  );
+
   return (
     <div className="rounded-xl bg-slate-50 p-3 text-center">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold text-slate-900">
-        {value.toLocaleString("ja-JP")}
-        <span className="ml-1 text-xs font-medium text-slate-500">{unit}</span>
-      </p>
-    </div>
-  );
-}
-
-function StockRowList({
-  rows,
-  variant,
-  onRemove,
-}: {
-  rows: StockRow[];
-  variant: "holding" | "watching";
-  onRemove: (code: string) => void;
-}) {
-  return (
-    <ul className="mt-3 space-y-3">
-      {rows.map((row) => (
-        <li
-          key={row.stock.code}
-          className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-        >
+      <div className="mt-1">
+        {href ? (
           <Link
-            href={`/stock/${row.stock.code}`}
-            className="block px-4 py-3 hover:bg-slate-50"
+            href={href}
+            className="-mx-1 block rounded-lg px-1 py-0.5 text-slate-900 outline-offset-2 transition hover:bg-slate-200/70 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+            aria-label={`${label}の一覧へ（${countText}）`}
           >
-            <div className="flex items-center gap-3">
-              <div
-                className={`grid h-10 w-10 place-items-center rounded-xl text-sm font-bold text-white ${
-                  variant === "holding" ? "bg-blue-600" : "bg-sky-500"
-                }`}
-              >
-                {row.stock.code.slice(0, 2)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">
-                  {row.stock.code} {row.stock.name}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-slate-500">
-                  {row.benefit?.content || "優待情報未登録"}
-                </p>
-              </div>
-              {variant === "holding" ? (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                  {row.shares.toLocaleString("ja-JP")}株
-                </span>
-              ) : (
-                <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
-                  ☆ キニナル
-                </span>
-              )}
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg bg-blue-50 p-2 text-blue-700">
-                <p className="opacity-80">次に届く目安</p>
-                <p className="mt-0.5 text-base font-bold">
-                  {row.nextEstimateLabel}
-                  {row.daysUntil !== null && (
-                    <span className="ml-1 text-xs font-medium">
-                      (あと{row.daysUntil}日)
-                    </span>
-                  )}
-                </p>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-2 text-slate-700">
-                <p className="opacity-80">直近の到着</p>
-                <p className="mt-0.5 text-base font-semibold">
-                  {row.latestArrival
-                    ? formatCalendarDateJa(row.latestArrival)
-                    : "まだ報告なし"}
-                </p>
-              </div>
-            </div>
+            {valueBlock}
           </Link>
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2">
-            <Link
-              href={`/stock/${row.stock.code}`}
-              className="text-xs text-blue-600 hover:underline"
-            >
-              銘柄ページを見る ›
-            </Link>
-            <button
-              type="button"
-              onClick={() => onRemove(row.stock.code)}
-              className="text-xs text-slate-500 hover:text-rose-600"
-            >
-              {variant === "holding" ? "保有銘柄から外す" : "キニナルから外す"}
-            </button>
-          </div>
-        </li>
-      ))}
-    </ul>
+        ) : (
+          <div className="text-slate-900">{valueBlock}</div>
+        )}
+      </div>
+    </div>
   );
 }

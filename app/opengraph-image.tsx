@@ -9,7 +9,7 @@ import { SITE_NAME } from "./lib/siteConfig";
  * 動的生成のため公開時に画像ファイルを準備する必要はない。
  */
 export const runtime = "edge";
-export const alt = `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる共有サイト`;
+export const alt = `${SITE_NAME} - 株主優待がいつ届く？いつ使った？がわかる到着共有コミュニティ`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

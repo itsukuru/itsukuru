@@ -17,13 +17,13 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-noto-sans-jp), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 /* ─────────────────────────────────────────────────────────────
  * 全体の基本スタイル
- *   - 日本語フォントを含む system font stack
+ *   - 本文は Noto Sans JP（next/font）を優先し、未ロード時は OS ゴシックで表示
  *   - 横スクロール防止（html のみ。body にも付けると縦が auto になり二重スクロール化）
  *   - scrollbar-gutter: stable は overflow 時の実スクロールバーと並び「二本」に見えるため未使用
  * ───────────────────────────────────────────────────────────── */
@@ -41,7 +41,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
-    var(--font-geist-sans),
+    var(--font-noto-sans-jp),
     -apple-system,
     BlinkMacSystemFont,
     "Hiragino Kaku Gothic ProN",
@@ -49,7 +49,6 @@ body {
     "Yu Gothic",
     "Yu Gothic UI",
     "Meiryo",
-    "Noto Sans JP",
     "Helvetica Neue",
     Arial,
     sans-serif;

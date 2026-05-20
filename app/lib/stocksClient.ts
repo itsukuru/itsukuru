@@ -1,7 +1,8 @@
-import type { JpStock } from "@/app/data/jpStocks";
+import type { JpStock } from "@/app/data/jpStockTypes";
+import { isDelistedStockCode } from "@/app/data/delistedStockCodes";
 import { jpStocks } from "@/app/data/jpStocks";
 import { STOCK_SEARCH_YOMI } from "@/app/data/jpStockSearchYomi";
-import { seedStockBenefits } from "@/app/data/stockBenefits";
+import { getSeedBenefitSearchHaystack, seedStockBenefits } from "@/app/data/stockBenefits";
 import { normalizeSearchText } from "./searchNormalize";
 
 export { normalizeSearchText };
@@ -10,30 +11,45 @@ export const CUSTOM_STOCKS_STORAGE_KEY = "custom-stocks:v1";
 
 export type StockRecord = JpStock;
 
-/** 銘柄コード・社名に加え、漢字部分の読み（jpStockSearchYomi）を含めた検索用文字列 */
+/** 銘柄コード・社名、読み補助、優待シード本文の和で検索用文字列を構築 */
 export const stockSearchHaystack = (stock: StockRecord): string => {
   const extra = STOCK_SEARCH_YOMI[stock.code]?.trim();
-  return [stock.code, stock.name, extra].filter(Boolean).join(" ");
+  const seedHay = getSeedBenefitSearchHaystack(stock.code).trim();
+  return [stock.code, stock.name, extra, seedHay].filter(Boolean).join(" ");
 };
 
 /**
  * 銘柄一覧を検索語で絞り込み、ヒット位置が早い順（同位置なら文字列が短い順）で上位を返す。
- * 1文字目だけのときにコード順の先頭8件へ埋もれないよう並べ替える。
+ * 空白区切りの複数語はすべて haystack に含まれる必要がある（検索ページと同様の AND）。
  */
 export const filterStocksBySearchKeyword = (
   stocks: StockRecord[],
   trimmedQuery: string,
-  limit = 16
+  limit = 32
 ): StockRecord[] => {
-  const keyword = normalizeSearchText(trimmedQuery);
-  if (!keyword) return [];
+  const tokens = trimmedQuery
+    .split(/[\s\u3000]+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map(normalizeSearchText)
+    .filter(Boolean);
+  if (!tokens.length) return [];
 
   const scored: { stock: StockRecord; idx: number; len: number }[] = [];
   for (const stock of stocks) {
     const hay = normalizeSearchText(stockSearchHaystack(stock));
-    const idx = hay.indexOf(keyword);
-    if (idx < 0) continue;
-    scored.push({ stock, idx, len: hay.length });
+    let sumIdx = 0;
+    let ok = true;
+    for (const token of tokens) {
+      const i = hay.indexOf(token);
+      if (i < 0) {
+        ok = false;
+        break;
+      }
+      sumIdx += i;
+    }
+    if (!ok) continue;
+    scored.push({ stock, idx: sumIdx, len: hay.length });
   }
 
   scored.sort((a, b) => {
@@ -79,8 +95,8 @@ export const mergeStocks = (base: StockRecord[], custom: StockRecord[]): StockRe
 };
 
 /**
- * jpStocks に無いが優待シードに存在する銘柄を、検索・銘柄ページ用に最低限の形で補う。
- * 社名は優待本文から推測しない（誤表記防止）。マスタ追記で上書きされる。
+ * jpStocks に無いが優待シードにだけコードが残っている場合の最終フォールバック。
+ * 通常は buildJpStocksFromSeed により社名が付与される。
  */
 const buildFallbackStockRecord = (code: string): StockRecord => ({
   code,
@@ -94,9 +110,11 @@ let resolvedMasterCache: StockRecord[] | null = null;
 const buildResolvedMasterStocks = (): StockRecord[] => {
   const map = new Map<string, StockRecord>();
   for (const s of jpStocks) {
+    if (isDelistedStockCode(s.code)) continue;
     map.set(s.code, normalizeStock(s));
   }
   for (const b of seedStockBenefits) {
+    if (isDelistedStockCode(b.stockCode)) continue;
     if (map.has(b.stockCode)) continue;
     map.set(b.stockCode, normalizeStock(buildFallbackStockRecord(b.stockCode)));
   }
@@ -130,6 +148,7 @@ export const loadCustomStocks = (): StockRecord[] => {
     return parsed
       .filter((item) => item && typeof item.code === "string" && typeof item.name === "string")
       .map(normalizeStock)
+      .filter((item) => !isDelistedStockCode(item.code))
       .filter((item) => isBenefitEligibleMarket(item.market));
   } catch {
     return [];
@@ -156,6 +175,9 @@ export const parseStocksCsv = (csvText: string): StockRecord[] => {
   for (const line of body) {
     const [code = "", name = "", market = "", industry = ""] = line.split(",").map((v) => v.trim());
     if (!code || !name) {
+      continue;
+    }
+    if (isDelistedStockCode(code)) {
       continue;
     }
     parsed.push(normalizeStock({ code, name, market, industry }));

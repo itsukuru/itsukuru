@@ -1,7 +1,7 @@
 {
   "name": "いつクル？ - 株主優待 到着予測共有",
   "short_name": "いつクル？",
-  "description": "株主優待がいつ届く？いつ使った？をみんなで共有するサイト。",
+  "description": "株主優待がいつ届く？いつ使った？をみんなで共有するコミュニティ。",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

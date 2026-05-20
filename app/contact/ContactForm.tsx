@@ -207,7 +207,7 @@ export default function ContactForm({
 
       <p className="text-[11px] leading-relaxed text-slate-500">
         ※ お送りいただいた内容はサーバーに保存され、サイト運営者のみが閲覧します。
-        スパム対策として、IP アドレス・ブラウザ情報は記録されません（送信時刻のみ）。
+        スパム対策のため、送信時刻に加え端末環境把握用に User-Agent を短く（最大500文字まで）記録することがあります。IP は保存していません。
       </p>
     </form>
   );

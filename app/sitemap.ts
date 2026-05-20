@@ -7,6 +7,12 @@ import { SITE_URL } from "./lib/siteConfig";
 // 銘柄一覧 × seedBenefits の O(N²) を避けて Map で O(N) に。
 const benefitByCode = new Map(seedStockBenefits.map((b) => [b.stockCode, b]));
 
+const stockLastModified = (benefit: (typeof seedStockBenefits)[number] | undefined, fallback: Date): Date => {
+  if (!benefit?.lastConfirmedAt) return fallback;
+  const d = new Date(benefit.lastConfirmedAt);
+  return Number.isNaN(d.getTime()) ? fallback : d;
+};
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   const staticUrls: MetadataRoute.Sitemap = [
@@ -27,6 +33,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/posts`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.75,
     },
     {
       url: `${SITE_URL}/faq`,
@@ -72,10 +84,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // - 優待情報なし:                    priority 0.5（中、weekly 更新）
   const stockUrls: MetadataRoute.Sitemap = getResolvedMasterStocks().map((stock) => {
     const benefit = benefitByCode.get(stock.code);
+    const lastModified = stockLastModified(benefit, now);
     if (!benefit) {
       return {
         url: `${SITE_URL}/stock/${stock.code}`,
-        lastModified: now,
+        lastModified,
         changeFrequency: "weekly" as const,
         priority: 0.5,
       };
@@ -83,14 +96,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     if (benefit.confidence === "abolished") {
       return {
         url: `${SITE_URL}/stock/${stock.code}`,
-        lastModified: now,
+        lastModified,
         changeFrequency: "monthly" as const,
         priority: 0.4,
       };
     }
     return {
       url: `${SITE_URL}/stock/${stock.code}`,
-      lastModified: now,
+      lastModified,
       changeFrequency: "daily" as const,
       priority: 0.9,
     };

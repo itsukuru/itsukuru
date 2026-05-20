@@ -12,26 +12,37 @@ import {
   POST_COOLDOWN_MS,
 } from "@/app/lib/ownPostsClient";
 import HelpfulButton from "@/app/components/HelpfulButton";
+import OwnPostShareLinks from "@/app/components/OwnPostShareLinks";
 import PostImage from "@/app/components/PostImage";
 import DateYyyymmddField from "@/app/components/DateYyyymmddField";
 import PrefectureSelect from "@/app/components/PrefectureSelect";
 
 type Props = {
   stockCode: string;
+  stockName: string;
   reports: UsageReport[];
   onAddReport: (report: UsageReport) => void;
   onUpdateReport?: (reportId: string, patch: Partial<UsageReport>) => void;
   onDeleteReport?: (reportId: string) => void;
+  listPreviewLimit?: number;
+  seeAllListHref?: string;
+  hideComposer?: boolean;
+  postsArchiveHref?: string;
 };
 
 type SortKey = "date" | "helpful";
 
 export default function StockUsageSection({
   stockCode,
+  stockName,
   reports,
   onAddReport,
   onUpdateReport,
   onDeleteReport,
+  listPreviewLimit,
+  seeAllListHref,
+  hideComposer = false,
+  postsArchiveHref,
 }: Props) {
   const [reporterName, setReporterName] = useState("");
   const [region, setRegion] = useState("");
@@ -41,6 +52,7 @@ export default function StockUsageSection({
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [cooldownMs, setCooldownMs] = useState(0);
+  const [usageAnchorId, setUsageAnchorId] = useState("");
 
   useEffect(() => {
     const profile = loadProfile();
@@ -68,6 +80,17 @@ export default function StockUsageSection({
     return () => clearInterval(t);
   }, [cooldownMs]);
 
+  useEffect(() => {
+    const syncHash = () => {
+      if (typeof window === "undefined") return;
+      const m = window.location.hash.match(/^#usage-report-(.+)$/);
+      setUsageAnchorId(m?.[1] ?? "");
+    };
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [stockCode]);
+
   const sortedReports = useMemo(() => {
     const copy = [...reports];
     if (sortKey === "helpful") {
@@ -83,11 +106,29 @@ export default function StockUsageSection({
     return copy;
   }, [reports, sortKey]);
 
+  const visibleUsageReports = useMemo(() => {
+    if (listPreviewLimit == null) return sortedReports;
+    const base = sortedReports.slice(0, listPreviewLimit);
+    if (!usageAnchorId) return base;
+    const hit = sortedReports.find((r) => r.id === usageAnchorId);
+    if (!hit || base.some((r) => r.id === hit.id)) return base;
+    return [...base, hit];
+  }, [sortedReports, listPreviewLimit, usageAnchorId]);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!usedDate) return;
     if (cooldownRemainingMs() > 0) {
       setCooldownMs(cooldownRemainingMs());
+      return;
+    }
+
+    const dateLabel = formatCalendarDateJa(usedDate);
+    if (
+      !window.confirm(
+        `「使った！」として使用日「${dateLabel}」で投稿しますか？\n（取り消しはマイページやこの一覧の削除から行えます）`
+      )
+    ) {
       return;
     }
 
@@ -133,104 +174,22 @@ export default function StockUsageSection({
       id="post-usage"
       className="mt-6 scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">いつ使った？</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold text-slate-900">いつ使った？</h2>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {postsArchiveHref ? (
+            <Link
+              href={postsArchiveHref}
+              className="text-xs font-medium text-blue-600 hover:underline"
+            >
+              この銘柄の投稿一覧
+            </Link>
+          ) : null}
+          <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
+            {sortedReports.length}件
+          </span>
         </div>
-        <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
-          {sortedReports.length}件
-        </span>
       </div>
-
-      <form className="mt-4 space-y-4 rounded-xl bg-sky-50/60 p-4" onSubmit={handleSubmit}>
-        <h3 className="text-sm font-semibold text-slate-900">使ったことを投稿</h3>
-        <DateYyyymmddField
-          id="usage-date-main"
-          label="使用日"
-          valueIso={usedDate}
-          onChangeIso={setUsedDate}
-          fallbackIso={getTodayIsoDate()}
-          required
-        />
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
-          <input
-            type="checkbox"
-            className="h-3.5 w-3.5 rounded border-slate-300"
-            checked={wantsComment}
-            onChange={(e) => setWantsComment(e.target.checked)}
-          />
-          コメントを付ける（任意）
-        </label>
-        {wantsComment && (
-          <textarea
-            placeholder={
-              "使った優待の感想やメモ（例: 食事券をランチで使いました）"
-            }
-            className="h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-          />
-        )}
-        <button
-          type="submit"
-          disabled={cooldownMs > 0}
-          className={`w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${
-            cooldownMs > 0
-              ? "cursor-not-allowed bg-slate-400"
-              : "bg-sky-500 hover:bg-sky-600"
-          }`}
-        >
-          {cooldownMs > 0
-            ? `連続投稿防止中... あと${Math.ceil(cooldownMs / 1000)}秒`
-            : "「使った！」を投稿する"}
-        </button>
-
-        <details className="rounded-lg border border-sky-200/80 bg-white/80 p-3">
-          <summary className="cursor-pointer text-xs font-semibold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
-            表示名・地域（なくても投稿できます）
-          </summary>
-          <div className="mt-3 grid gap-4 border-t border-sky-100 pt-3 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="usage-reporter-name"
-                className="mb-1 block text-xs font-medium text-slate-800"
-              >
-                投稿者名
-              </label>
-              <input
-                id="usage-reporter-name"
-                type="text"
-                autoComplete="nickname"
-                placeholder="例: たろう、ニックネーム"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                value={reporterName}
-                onChange={(event) => setReporterName(event.target.value)}
-                aria-describedby="usage-reporter-hint"
-              />
-              <p id="usage-reporter-hint" className="mt-1 text-[11px] text-slate-500">
-                空欄のときは「匿名」として表示されます。
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="usage-region"
-                className="mb-1 block text-xs font-medium text-slate-800"
-              >
-                お住まいの地域（任意）
-              </label>
-              <PrefectureSelect
-                id="usage-region"
-                value={region}
-                onChange={setRegion}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              />
-              <p className="mt-1 text-[11px] text-slate-500">
-                未選択のときは投稿に地域は表示されません。
-              </p>
-            </div>
-          </div>
-        </details>
-      </form>
 
       {sortedReports.length > 0 && (
         <div className="mt-4 flex items-center justify-end">
@@ -252,7 +211,7 @@ export default function StockUsageSection({
             まだ使用報告がありません。優待を使ったら最初の「使った！」を投稿してみましょう。
           </p>
         )}
-        {sortedReports.map((report) => {
+        {visibleUsageReports.map((report) => {
           const own = isOwnPost("usage", report.id);
           if (editingId === report.id) {
             return (
@@ -301,7 +260,7 @@ export default function StockUsageSection({
                 <PostImage src={report.imageUrl} alt="使ったシーンの写真" />
               )}
               <div className="mt-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1 text-[10px]">
+                <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px]">
                   {own ? (
                     <>
                       <button
@@ -318,6 +277,12 @@ export default function StockUsageSection({
                       >
                         削除
                       </button>
+                      <OwnPostShareLinks
+                        kind="usage"
+                        stockCode={stockCode}
+                        stockName={stockName}
+                        postId={report.id}
+                      />
                     </>
                   ) : (
                     <Link
@@ -339,7 +304,115 @@ export default function StockUsageSection({
             </article>
           );
         })}
+        {listPreviewLimit != null &&
+          seeAllListHref &&
+          sortedReports.length > listPreviewLimit && (
+            <p className="pt-1 text-center text-xs text-slate-600">
+              直近{listPreviewLimit}件を表示しています（全{sortedReports.length}件）。
+              <Link
+                href={seeAllListHref}
+                className="ml-1 font-medium text-blue-600 hover:underline"
+              >
+                すべての使用投稿を見る
+              </Link>
+            </p>
+          )}
       </div>
+
+      {!hideComposer && (
+        <div className="mt-6 space-y-4 border-t border-slate-100 pt-6">
+          <form
+            className="space-y-4 rounded-xl bg-sky-50/60 p-4"
+            onSubmit={handleSubmit}
+          >
+            <h3 className="text-sm font-semibold text-slate-900">使ったことを投稿</h3>
+            <DateYyyymmddField
+              id="usage-date-main"
+              label="使用日"
+              valueIso={usedDate}
+              onChangeIso={setUsedDate}
+              fallbackIso={getTodayIsoDate()}
+              required
+            />
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-slate-300"
+                checked={wantsComment}
+                onChange={(e) => setWantsComment(e.target.checked)}
+              />
+              コメントを付ける（任意）
+            </label>
+            {wantsComment && (
+              <textarea
+                placeholder="使った優待の感想やメモ（例: 食事券をランチで使いました）"
+                className="h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+              />
+            )}
+            <button
+              type="submit"
+              disabled={cooldownMs > 0}
+              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition ${
+                cooldownMs > 0
+                  ? "cursor-not-allowed bg-slate-400"
+                  : "bg-sky-500 hover:bg-sky-600"
+              }`}
+            >
+              {cooldownMs > 0
+                ? `連続投稿防止中... あと${Math.ceil(cooldownMs / 1000)}秒`
+                : "「使った！」を投稿する"}
+            </button>
+
+            <details className="rounded-lg border border-sky-200/80 bg-white/80 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
+                表示名・地域（なくても投稿できます）
+              </summary>
+              <div className="mt-3 grid gap-4 border-t border-sky-100 pt-3 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="usage-reporter-name"
+                    className="mb-1 block text-xs font-medium text-slate-800"
+                  >
+                    投稿者名
+                  </label>
+                  <input
+                    id="usage-reporter-name"
+                    type="text"
+                    autoComplete="nickname"
+                    placeholder="例: たろう、ニックネーム"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                    value={reporterName}
+                    onChange={(event) => setReporterName(event.target.value)}
+                    aria-describedby="usage-reporter-hint"
+                  />
+                  <p id="usage-reporter-hint" className="mt-1 text-[11px] text-slate-500">
+                    空欄のときは「匿名」として表示されます。
+                  </p>
+                </div>
+                <div>
+                  <label
+                    htmlFor="usage-region"
+                    className="mb-1 block text-xs font-medium text-slate-800"
+                  >
+                    お住まいの地域（任意）
+                  </label>
+                  <PrefectureSelect
+                    id="usage-region"
+                    value={region}
+                    onChange={setRegion}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    未選択のときは投稿に地域は表示されません。
+                  </p>
+                </div>
+              </div>
+            </details>
+          </form>
+        </div>
+      )}
     </section>
   );
 }

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Logo from "./Logo";
 import HeaderStockSearch from "./HeaderStockSearch";
 import { isUserRegistered, loadProfile } from "@/app/lib/profileClient";
+import { SITE_TAGLINE_SECONDARY } from "@/app/lib/siteConfig";
 
 type NavItem = {
   href: string;
@@ -15,9 +16,9 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   {
-    href: "/faq",
-    label: "よくある質問",
-    match: (p) => p.startsWith("/faq"),
+    href: "/search",
+    label: "詳細銘柄検索",
+    match: (p) => p.startsWith("/search"),
   },
 ];
 
@@ -60,9 +61,9 @@ export default function SiteHeader() {
             </div>
             <p
               className="min-w-0 max-w-[min(11rem,46vw)] shrink truncate text-[10px] font-semibold leading-tight text-slate-600 sm:text-[11px]"
-              title="株主優待到着報告サイト"
+              title={SITE_TAGLINE_SECONDARY}
             >
-              株主優待到着報告サイト
+              {SITE_TAGLINE_SECONDARY}
             </p>
             <div className="min-w-0 flex-1 basis-0 overflow-visible">
               <HeaderStockSearch
@@ -90,7 +91,7 @@ export default function SiteHeader() {
           <div className="flex min-w-0 flex-none items-center gap-2 md:max-w-xs lg:max-w-sm">
             <Logo size="md" />
             <p className="text-xs font-semibold leading-snug text-slate-600 lg:text-sm">
-              株主優待到着報告サイト
+              {SITE_TAGLINE_SECONDARY}
             </p>
           </div>
 

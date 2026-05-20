@@ -3,6 +3,7 @@ import {
   seedStockBenefits,
   type StockBenefit,
 } from "@/app/data/stockBenefits";
+import { isDelistedStockCode } from "@/app/data/delistedStockCodes";
 
 const STORAGE_PREFIX = "stock-benefit:";
 
@@ -15,6 +16,10 @@ const isStockBenefit = (value: unknown): value is StockBenefit => {
 };
 
 export const loadBenefitForStock = (stockCode: string): StockBenefit | null => {
+  if (isDelistedStockCode(stockCode)) {
+    return null;
+  }
+
   if (typeof window === "undefined") {
     return findSeedBenefit(stockCode) ?? null;
   }
@@ -38,6 +43,9 @@ export const saveBenefitForStock = (benefit: StockBenefit) => {
   if (typeof window === "undefined") {
     return;
   }
+  if (isDelistedStockCode(benefit.stockCode)) {
+    return;
+  }
   localStorage.setItem(
     `${STORAGE_PREFIX}${benefit.stockCode}`,
     JSON.stringify(benefit)
@@ -56,6 +64,7 @@ export const loadAllBenefits = (): Map<string, StockBenefit> => {
   const map = new Map<string, StockBenefit>();
 
   for (const seed of seedStockBenefits) {
+    if (isDelistedStockCode(seed.stockCode)) continue;
     map.set(seed.stockCode, seed);
   }
 
@@ -71,6 +80,7 @@ export const loadAllBenefits = (): Map<string, StockBenefit> => {
     try {
       const parsed = JSON.parse(raw) as unknown;
       if (isStockBenefit(parsed)) {
+        if (isDelistedStockCode(parsed.stockCode)) continue;
         map.set(parsed.stockCode, parsed);
       }
     } catch {

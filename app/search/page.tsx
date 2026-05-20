@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -17,7 +17,15 @@ import {
   getEffectiveConfidence,
   type StockBenefit,
 } from "@/app/data/stockBenefits";
-import { parseRightsMonths } from "@/app/lib/holdingsClient";
+import {
+  loadHoldings,
+  parseRightsMonths,
+  type Holdings,
+} from "@/app/lib/holdingsClient";
+import {
+  FAVORITES_STORAGE_KEY,
+  loadFavoriteCodes,
+} from "@/app/lib/favoritesClient";
 import {
   BENEFIT_CATEGORIES,
   FALLBACK_CATEGORY,
@@ -27,6 +35,10 @@ import {
 import type { ReactNode } from "react";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+/** `holdingsClient` のキーと一致させる（storage イベント照合用） */
+const HOLDINGS_STORAGE_KEY = "stock-holdings:v1";
+const SIDEBAR_PORTFOLIO_LIMIT = 6;
 
 /** 投稿導線では詳細フィルタを折りたたみ、検索→タップを優先する */
 function CollapsibleSearchFilters({
@@ -69,15 +81,57 @@ export default function SearchPage() {
   const [stocks, setStocks] = useState<StockRecord[]>(getDefaultStocks());
   const [benefits, setBenefits] = useState<Map<string, StockBenefit>>(new Map());
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const fromUrl =
+      searchParams?.get("q")?.trim() ??
+      searchParams?.get("keywords")?.trim() ??
+      "";
+    if (fromUrl) setQuery(fromUrl);
+  }, [searchParams]);
+
   const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<BenefitCategoryKey | null>(null);
   const [onlyWithBenefit, setOnlyWithBenefit] = useState(false);
   const [includeAbolished, setIncludeAbolished] = useState(false);
+  const [holdings, setHoldings] = useState<Holdings>({});
+  const [favoriteCodes, setFavoriteCodes] = useState<string[]>([]);
+
+  const refreshPortfolio = useCallback(() => {
+    const h = loadHoldings();
+    setHoldings(h);
+    setFavoriteCodes(
+      loadFavoriteCodes().filter((code) => (h[code] ?? 0) === 0)
+    );
+  }, []);
 
   useEffect(() => {
     setStocks(mergeStocks(getDefaultStocks(), loadCustomStocks()));
     setBenefits(loadAllBenefits());
   }, []);
+
+  useEffect(() => {
+    refreshPortfolio();
+  }, [refreshPortfolio]);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (e.key === HOLDINGS_STORAGE_KEY || e.key === FAVORITES_STORAGE_KEY) {
+        refreshPortfolio();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [refreshPortfolio]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") refreshPortfolio();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [refreshPortfolio]);
 
   const toggleMonth = (month: number) => {
     setSelectedMonths((prev) =>
@@ -169,6 +223,29 @@ export default function SearchPage() {
     stocks,
     trimmedQuery,
   ]);
+
+  const holdingList = useMemo(() => {
+    return Object.entries(holdings)
+      .filter(([, shares]) => shares > 0)
+      .map(([code, shares]) => {
+        const stock = stocks.find((s) => s.code === code);
+        return {
+          code,
+          shares,
+          label: stock?.name ?? code,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, "ja"));
+  }, [holdings, stocks]);
+
+  const watchlistList = useMemo(() => {
+    return favoriteCodes
+      .map((code) => {
+        const stock = stocks.find((s) => s.code === code);
+        return { code, label: stock?.name ?? code };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, "ja"));
+  }, [favoriteCodes, stocks]);
 
   const hasAnyFilter =
     trimmedQuery !== "" ||
@@ -328,6 +405,117 @@ export default function SearchPage() {
             <p className="mt-3 hidden text-xs leading-relaxed text-slate-500 lg:block">
               左でキーワード・ジャンル・権利月を指定し、右の一覧から銘柄を選びます。タップで銘柄ページへ進み、投稿フォームはページ内にあります。
             </p>
+
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-slate-900">保有銘柄</h2>
+                  <Link
+                    href="/mypage/holdings"
+                    prefetch={false}
+                    className="shrink-0 text-[11px] font-medium text-blue-600 hover:underline"
+                  >
+                    編集
+                  </Link>
+                </div>
+                {holdingList.length === 0 ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                    まだありません。銘柄ページや{" "}
+                    <Link
+                      href="/mypage#my-holdings"
+                      prefetch={false}
+                      className="text-blue-600 hover:underline"
+                    >
+                      マイページ
+                    </Link>
+                    から株数を登録できます。
+                  </p>
+                ) : (
+                  <>
+                    <ul className="mt-2 space-y-0.5">
+                      {holdingList.slice(0, SIDEBAR_PORTFOLIO_LIMIT).map(({ code, label, shares }) => (
+                        <li key={code}>
+                          <Link
+                            href={`/stock/${code}${postHash}`}
+                            prefetch={false}
+                            className="flex items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-xs text-slate-800 hover:bg-slate-50"
+                          >
+                            <span className="min-w-0 truncate font-medium">{label}</span>
+                            <span className="shrink-0 tabular-nums text-[11px] text-slate-500">
+                              {shares}株
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    {holdingList.length > SIDEBAR_PORTFOLIO_LIMIT && (
+                      <p className="mt-1 text-end">
+                        <Link
+                          href="/mypage#my-holdings"
+                          prefetch={false}
+                          className="text-[11px] text-blue-600 hover:underline"
+                        >
+                          他 {holdingList.length - SIDEBAR_PORTFOLIO_LIMIT} 件…
+                        </Link>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-slate-900">キニナル銘柄</h2>
+                  <Link
+                    href="/mypage#my-watchlist"
+                    prefetch={false}
+                    className="shrink-0 text-[11px] font-medium text-blue-600 hover:underline"
+                  >
+                    一覧
+                  </Link>
+                </div>
+                {watchlistList.length === 0 ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                    まだありません。銘柄ページの「キニナル」や{" "}
+                    <Link
+                      href="/mypage#my-watchlist"
+                      prefetch={false}
+                      className="text-blue-600 hover:underline"
+                    >
+                      マイページ
+                    </Link>
+                    から追加できます。
+                  </p>
+                ) : (
+                  <>
+                    <ul className="mt-2 space-y-0.5">
+                      {watchlistList.slice(0, SIDEBAR_PORTFOLIO_LIMIT).map(({ code, label }) => (
+                        <li key={code}>
+                          <Link
+                            href={`/stock/${code}${postHash}`}
+                            prefetch={false}
+                            className="block truncate rounded-lg px-1 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-50"
+                          >
+                            {label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    {watchlistList.length > SIDEBAR_PORTFOLIO_LIMIT && (
+                      <p className="mt-1 text-end">
+                        <Link
+                          href="/mypage#my-watchlist"
+                          prefetch={false}
+                          className="text-[11px] text-blue-600 hover:underline"
+                        >
+                          他 {watchlistList.length - SIDEBAR_PORTFOLIO_LIMIT} 件…
+                        </Link>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </aside>
 
           <div className="flex min-w-0 flex-col lg:col-span-7">

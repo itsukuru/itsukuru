@@ -23,6 +23,7 @@ import {
   updateLocalUsageReport,
 } from "@/app/lib/usageReportsClient";
 import { unmarkOwnPost } from "@/app/lib/ownPostsClient";
+import { STOCK_POST_LIST_PREVIEW_LIMIT } from "@/app/lib/postLimitsClient";
 import type { StockBenefit } from "@/app/data/stockBenefits";
 import StockReportSection from "./StockReportSection";
 import StockUsageSection from "./StockUsageSection";
@@ -181,18 +182,26 @@ export default function StockDetailClient({ code, fallbackStock, benefit }: Prop
 
         <StockReportSection
           stockCode={stock.code}
+          stockName={stock.name}
           reports={reports}
           onAddReport={handleAddReport}
           onUpdateReport={handleUpdateReport}
           onDeleteReport={handleDeleteReport}
+          listPreviewLimit={STOCK_POST_LIST_PREVIEW_LIMIT}
+          seeAllListHref={`/stock/${stock.code}/posts#post-arrival`}
+          postsArchiveHref={`/stock/${stock.code}/posts`}
         />
 
         <StockUsageSection
           stockCode={stock.code}
+          stockName={stock.name}
           reports={usageReports}
           onAddReport={handleAddUsageReport}
           onUpdateReport={handleUpdateUsageReport}
           onDeleteReport={handleDeleteUsageReport}
+          listPreviewLimit={STOCK_POST_LIST_PREVIEW_LIMIT}
+          seeAllListHref={`/stock/${stock.code}/posts#post-usage`}
+          postsArchiveHref={`/stock/${stock.code}/posts`}
         />
       </div>
     </main>
