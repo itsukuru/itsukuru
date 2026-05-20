@@ -6981,7 +6981,7 @@ const seedStockBenefitsRaw: StockBenefit[] = [
     minShares: 100,
     confidence: "stable",
     expectedArrival: "6月頃",
-    badgeKeys: ["gourmet", "discount"],
+    badgeKeys: ["food", "discount"],
     irUrl: "https://www.amiyakitei.co.jp/ir/",
   },
   {
