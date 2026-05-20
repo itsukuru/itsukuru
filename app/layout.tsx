@@ -30,7 +30,6 @@ const websiteJsonLd = {
   description: SITE_DESCRIPTION,
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
-  publisher: SITE_NAME,
   applicationName: SITE_NAME,
   inLanguage: "ja-JP",
   publisher: {

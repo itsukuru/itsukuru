@@ -80,6 +80,14 @@ function buildArrivalMonthBuckets(timeline: TimelineRow[]): ArrivalMonthBucket[]
   });
 }
 
+const EMPTY_CALENDAR_MODEL = {
+  holdingCount: 0,
+  arrivalBuckets: [] as ArrivalMonthBucket[],
+  timeline: [] as TimelineRow[],
+  unknownRights: [] as UnknownRightsRow[],
+  abolishedRows: [] as AbolishedRow[],
+};
+
 function deriveCalendarModel(stocks: StockRecord[]) {
   const stockMap = new Map(stocks.map((s) => [s.code, s]));
   const holdings = loadHoldings();
@@ -164,9 +172,8 @@ function deriveCalendarModel(stocks: StockRecord[]) {
 }
 
 export default function HoldingsCalendarClient() {
-  const [stocks, setStocks] = useState<StockRecord[]>(() =>
-    mergeStocks(getDefaultStocks(), loadCustomStocks())
-  );
+  const [stocks, setStocks] = useState<StockRecord[]>(getDefaultStocks);
+  const [mounted, setMounted] = useState(false);
   const [tick, setTick] = useState(0);
 
   const refresh = useCallback(() => {
@@ -175,6 +182,7 @@ export default function HoldingsCalendarClient() {
   }, []);
 
   useEffect(() => {
+    setMounted(true);
     refresh();
     const onFocus = () => refresh();
     window.addEventListener("focus", onFocus);
@@ -188,7 +196,10 @@ export default function HoldingsCalendarClient() {
     };
   }, [refresh]);
 
-  const model = useMemo(() => deriveCalendarModel(stocks), [stocks, tick]);
+  const model = useMemo(
+    () => (mounted ? deriveCalendarModel(stocks) : EMPTY_CALENDAR_MODEL),
+    [stocks, tick, mounted]
+  );
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
